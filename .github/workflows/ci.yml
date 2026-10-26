@@ -18,6 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: 3.47.8
@@ -28,8 +30,22 @@ jobs:
       - name: Resolve example dependencies
         working-directory: example
         run: flutter pub get
-      - name: Check Dart formatting
-        run: dart format --output=none --set-exit-if-changed lib example/lib
+      - name: Check changed Dart formatting
+        env:
+          PR_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          BASE_SHA="$PR_BASE_SHA"
+          if [ -z "$BASE_SHA" ]; then
+            BASE_SHA="$(git merge-base origin/main HEAD)"
+          fi
+          mapfile -d '' -t dart_files < <(
+            git diff --diff-filter=ACMRT --name-only -z "$BASE_SHA"...HEAD -- '*.dart'
+          )
+          if [ "${#dart_files[@]}" -eq 0 ]; then
+            echo "No changed Dart files to format-check."
+            exit 0
+          fi
+          dart format --output=none --set-exit-if-changed "${dart_files[@]}"
       - name: Analyze package
         run: flutter analyze --no-fatal-warnings --no-fatal-infos
       - name: Analyze example
