@@ -1,0 +1,19 @@
+name: Nightly Build
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 17 * * *'
+
+concurrency:
+  group: nightly-example-build
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build-example:
+    uses: ./.github/workflows/build-example.yml
+    permissions:
+      contents: read
