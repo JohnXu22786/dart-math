@@ -105,9 +105,7 @@ class _MathDrawingPageState extends State<MathDrawingPage>
     setState(() {
       _mathMode = mathematical;
       _activeFormula = formula;
-      _keyboardVisible = mathematical &&
-          widget.initialShowWebView &&
-          MathFormulaField.supported;
+      _keyboardVisible = mathematical;
     });
     if (mathematical) {
       _ensureFormulaVisible(formula);
@@ -127,11 +125,7 @@ class _MathDrawingPageState extends State<MathDrawingPage>
   }
 
   void _activateFormula(_FormulaState formula) {
-    if (!_mathMode ||
-        !widget.initialShowWebView ||
-        !MathFormulaField.supported) {
-      return;
-    }
+    if (!_mathMode) return;
     _modeTouched = true;
     final keyboardWasHidden = !_keyboardVisible;
     if (!keyboardWasHidden && _activeFormula == formula) return;
@@ -533,9 +527,7 @@ class _MathDrawingPageState extends State<MathDrawingPage>
                   ),
                 ),
                 if (_keyboardVisible &&
-                    _activeFormula != null &&
-                    widget.initialShowWebView &&
-                    MathFormulaField.supported)
+                    _activeFormula != null)
                   ConstrainedBox(
                     constraints: BoxConstraints(maxHeight: keyboardMaxHeight),
                     child: MathKeyboard(
