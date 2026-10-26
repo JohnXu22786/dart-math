@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<script src="mathlive.min.js"></script>
+<script>
+MathLive.MathfieldElement.fontsDirectory = new URL('./fonts', document.baseURI).href;
+MathLive.MathfieldElement.soundsDirectory = null;
+MathLive.MathfieldElement.keypressSound = null;
+MathLive.MathfieldElement.plonkSound = null;
+</script>
+<style>
+html,body { margin:0; background:transparent; color:var(--ink,#222); }
+math-field { display:block; width:100%; height:46px; min-height:46px; border:0; background:transparent; color:var(--ink,#222); font-size:18px; padding:2px; box-sizing:border-box; --caret-color:var(--accent,#1967d2); --selection-background-color:#1967d233; --contains-highlight-background-color:#1967d211; }
+math-field:focus,math-field:focus-within { outline:none !important; box-shadow:none !important; }
+math-field::part(virtual-keyboard-toggle),math-field::part(menu-toggle) { display:none; }
+</style>
+</head>
+<body>
+<math-field id="formula" math-virtual-keyboard-policy="manual" aria-label="数学公式编辑器"></math-field>
+<script src="navigation.js"></script>
+<script src="editor.js"></script>
+</body>
+</html>

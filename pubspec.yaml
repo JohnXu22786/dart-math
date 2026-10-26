@@ -1,0 +1,22 @@
+name: dart_math
+description: 2D graphing and 3D geometry math models, editors, and rendering widgets.
+version: 0.1.0
+publish_to: none
+license: AGPL-3.0-only
+
+environment:
+  sdk: '>=3.13.7 <4.0.0'
+  flutter: '>=3.47.8'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_inappwebview: ^6.1.5
+  flutter_math_fork: ^0.7.4
+  function_tree: ^0.9.1
+  shared_preferences: ^2.5.6
+
+flutter:
+  assets:
+    - assets/vendor/mathlive/
+    - assets/vendor/mathlive/fonts/
