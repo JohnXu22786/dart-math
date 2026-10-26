@@ -847,9 +847,13 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       });
     } else if (widget.polygonSides != oldWidget.polygonSides &&
         widget.currentTool == ConstructionTool.regularPolygon) {
-      setState(() {
-        _construction?.updatePolygonSides(widget.polygonSides);
-        _constructionPreview = null;
+      setTool(widget.currentTool, notifyInstruction: false);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          widget.onToolInstruction?.call(
+            _construction?.currentInstruction ?? '',
+          );
+        }
       });
     }
   }
