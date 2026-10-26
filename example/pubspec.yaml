@@ -1,0 +1,16 @@
+name: dart_math_example
+description: Standalone host for the dart_math package.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.13.7 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  dart_math:
+    path: ..
+
+flutter:
+  uses-material-design: true
