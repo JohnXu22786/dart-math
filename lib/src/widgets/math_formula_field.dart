@@ -318,7 +318,8 @@ class MathFormulaFieldState extends State<MathFormulaField>
                       )
                     : Stack(children: [
                         InAppWebView(
-                          initialFile: 'assets/vendor/mathlive/editor.html',
+                          initialFile:
+                              'packages/dart_math/assets/vendor/mathlive/editor.html',
                           initialSettings: InAppWebViewSettings(
                             javaScriptEnabled: true,
                             transparentBackground: true,
