@@ -1,11 +1,13 @@
-# dart-math
+# visual_math
 
 A Flutter package containing Stroom's 2D graphing and 3D geometry feature:
 expression parsing and plotting, implicit contours, parameter controls, a
 math keyboard and formula editor, 3D scene geometry and construction tools,
 and interactive 2D/3D canvases.
 
-Import `package:dart_math/dart_math.dart` for the public models, widgets, and
+Source code: <https://github.com/JohnXu22786/visual-math>.
+
+Import `package:visual_math/visual_math.dart` for the public models, widgets, and
 `MathDrawingPage`. The formula editor uses the included MathLive assets; the
 2D JSXGraph canvas loads JSXGraph from its CDN when used.
 
@@ -25,21 +27,17 @@ opens the same `MathDrawingPage` exported by the package.
 
 ## Embed in a Flutter app
 
-Add `dart_math` as a Git dependency in the consuming app's `pubspec.yaml`. Pin
-`ref` to the package commit or tag you want to use:
+Add `visual_math` from pub.dev in the consuming app's `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  dart_math:
-    git:
-      url: https://github.com/JohnXu22786/dart-math.git
-      ref: <commit-or-tag>
+  visual_math: ^0.1.0
 ```
 
 Then import and show the page:
 
 ```dart
-import 'package:dart_math/dart_math.dart';
+import 'package:visual_math/visual_math.dart';
 import 'package:flutter/material.dart';
 
 MaterialApp(
