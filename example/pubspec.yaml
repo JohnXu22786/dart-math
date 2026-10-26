@@ -1,5 +1,5 @@
 name: dart_math_example
-description: Standalone host for the dart_math package.
+description: Standalone host for the visual_math package.
 publish_to: none
 version: 1.0.0+1
 
@@ -9,7 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  dart_math:
+  visual_math:
     path: ..
 
 flutter:

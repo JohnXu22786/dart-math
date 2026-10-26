@@ -1,4 +1,4 @@
-import 'package:dart_math/dart_math.dart';
+import 'package:visual_math/visual_math.dart';
 import 'package:flutter/material.dart';
 
 void main() {
