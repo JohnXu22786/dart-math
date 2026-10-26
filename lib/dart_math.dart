@@ -15,7 +15,8 @@ export 'src/pages/math_drawing_page.dart';
 export 'src/widgets/math_3d_toolbar.dart';
 export 'src/widgets/math_canvas.dart';
 export 'src/widgets/math_canvas_3d.dart';
-export 'src/widgets/math_canvas_webview.dart';
+export 'src/widgets/math_canvas_webview.dart'
+    hide OnCoordinateUpdate, OnViewportChange, OnReady, OnError;
 export 'src/widgets/math_formula_field.dart';
 export 'src/widgets/math_keyboard.dart';
 export 'src/widgets/math_parameter_controls.dart';
