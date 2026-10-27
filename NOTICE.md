@@ -8,6 +8,11 @@ Stroom project (`https://github.com/JohnXu22786/Stroom`), which is licensed
 under GNU AGPL v3.0. The upstream working tree used for this port was at
 `0f828e2bd3a4a7dd308af4b30f3d5e9543a182fe`.
 
+The MathLive bridge tests in `tools/math_editor_test/` are transferred from
+Stroom's `tools/math_editor_test/` at commit
+`b444ece22a408fb71318e7662c8408b4412935b2`. Their assertions are retained;
+only the package asset lookup and test hostname are adapted for Visual Math.
+
 Relevant upstream history includes these original commits (author metadata and
 commit objects remain in Stroom):
 
