@@ -40,6 +40,7 @@ class MathFormulaField extends StatefulWidget {
     this.fillColor,
   });
 
+  /// Whether this platform can run the embedded MathLive WebView.
   static bool get supported =>
       !kIsWeb &&
       defaultTargetPlatform != TargetPlatform.linux &&
@@ -270,9 +271,8 @@ class MathFormulaFieldState extends State<MathFormulaField>
   Widget build(BuildContext context) {
     super.build(context);
     final cs = Theme.of(context).colorScheme;
-    final mathematicalMode =
-        widget.mathematical &&
-        (!widget.showWebView || MathFormulaField.supported);
+    final mathematicalMode = widget.mathematical;
+    final usesFallback = widget.showWebView && !MathFormulaField.supported;
     final toggle = !widget.allowModeSwitch
         ? const SizedBox.shrink()
         : IconButton(
@@ -280,14 +280,14 @@ class MathFormulaFieldState extends State<MathFormulaField>
               mathematicalMode ? Icons.keyboard : Icons.calculate_outlined,
               size: 20,
             ),
-            tooltip: widget.showWebView && !MathFormulaField.supported
-                ? '当前平台暂不支持数学编辑，使用 LaTeX 源码输入'
+            tooltip: usesFallback
+                ? mathematicalMode
+                    ? '切换到 LaTeX 源码输入'
+                    : '切换到数学键盘（内置公式预览）'
                 : mathematicalMode
                 ? '切换到系统键盘 / LaTeX 源码'
                 : '切换到数学键盘',
-            onPressed: widget.showWebView && !MathFormulaField.supported
-                ? null
-                : _toggle,
+            onPressed: _toggle,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           );
     return Column(
@@ -332,7 +332,8 @@ class MathFormulaFieldState extends State<MathFormulaField>
                         : Stack(
                             children: [
                               InAppWebView(
-                                initialFile: 'packages/dart_math/assets/vendor/mathlive/editor.html',
+                                initialFile:
+                                    'packages/visual_math/assets/vendor/mathlive/editor.html',
                                 initialSettings: InAppWebViewSettings(
                                   javaScriptEnabled: true,
                                   transparentBackground: true,

@@ -18,7 +18,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - label: Linux x64
+          - label: Linux x64 (formula preview fallback)
             artifact: linux-x64
             runner: ubuntu-latest
             platform: linux
@@ -118,13 +118,26 @@ jobs:
       - if: matrix.target == 'macos'
         name: Archive macOS build
         working-directory: example
-        run: ditto -c -k --keepParent build/macos/Build/Products/Release/Runner.app "$GITHUB_WORKSPACE/example-${{ matrix.artifact }}.zip"
+        run: |
+          app_path="$(find build/macos/Build/Products/Release -maxdepth 1 -type d -name '*.app' -print -quit)"
+          if [ -z "$app_path" ]; then
+            echo "No macOS app bundle was produced under build/macos/Build/Products/Release."
+            find build/macos/Build/Products/Release -maxdepth 2 -print
+            exit 1
+          fi
+          ditto -c -k --keepParent "$app_path" "$GITHUB_WORKSPACE/example-${{ matrix.artifact }}.zip"
       - if: matrix.target == 'ios'
         name: Package unsigned iOS app
         working-directory: example
         run: |
+          app_path="$(find build/ios/iphoneos -maxdepth 1 -type d -name '*.app' -print -quit)"
+          if [ -z "$app_path" ]; then
+            echo "No iOS app bundle was produced under build/ios/iphoneos."
+            find build/ios -maxdepth 4 -print
+            exit 1
+          fi
           mkdir -p build/ios/ipa/Payload
-          cp -R build/ios/iphoneos/Runner.app build/ios/ipa/Payload/
+          cp -R "$app_path" build/ios/ipa/Payload/
           cd build/ios/ipa
           zip -r "$GITHUB_WORKSPACE/example-ios-unsigned.ipa" Payload/
       - uses: actions/upload-artifact@v4

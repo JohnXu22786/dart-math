@@ -52,22 +52,11 @@ jobs:
         working-directory: example
         run: flutter analyze --fatal-warnings --fatal-infos
 
-  example-web:
-    name: Build standalone example for Web
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: 3.47.8
-          cache: true
-          pub-cache: true
-      - name: Resolve example dependencies
-        working-directory: example
-        run: flutter pub get
-      - name: Build example
-        working-directory: example
-        run: flutter build web --release
+  example-builds:
+    name: Build example release matrix
+    uses: ./.github/workflows/build-example.yml
+    with:
+      ref: ${{ github.sha }}
 
   package-test:
     name: Test package

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visual_math/visual_math.dart';
@@ -80,6 +81,10 @@ void main() {
       );
       await tester.pumpWidget(app(light));
       final native = platform.editor!;
+      expect(
+        native.params.initialFile,
+        'packages/visual_math/assets/vendor/mathlive/editor.html',
+      );
       final controller = native.controllerFromPlatform<InAppWebViewController>(
         native.controller,
       );
@@ -100,6 +105,58 @@ void main() {
         hasLength(1),
       );
       expect(source.text, r'\frac{x}{2}');
+      await tester.pumpWidget(const SizedBox.shrink());
+      source.dispose();
+    },
+  );
+
+  testWidgets(
+    'unsupported WebView platforms keep the built-in formula editor usable',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      final source = TextEditingController(text: 'x');
+      var mathematical = false;
+      var activated = false;
+
+      Widget app() => MaterialApp(
+        home: Scaffold(
+          body: MathFormulaField(
+            controller: source,
+            mathematical: mathematical,
+            onModeChanged: (value) => mathematical = value,
+            onActivate: () => activated = true,
+            onChanged: () {},
+            onSubmitted: () {},
+            label: '公式 1',
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(app());
+
+      expect(MathFormulaField.supported, isFalse);
+      expect(find.byType(InAppWebView), findsNothing);
+      expect(find.byTooltip('切换到数学键盘（内置公式预览）'), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+
+      await tester.tap(find.byTooltip('切换到数学键盘（内置公式预览）'));
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
+      expect(mathematical, isTrue);
+      expect(find.byType(Math), findsOneWidget);
+      expect(find.byType(InAppWebView), findsNothing);
+
+      await tester.tap(find.byType(Math));
+      await tester.pump();
+      expect(activated, isTrue);
+
+      await tester.tap(find.byTooltip('切换到 LaTeX 源码输入'));
+      await tester.pumpWidget(app());
+      await tester.pumpAndSettle();
+      expect(mathematical, isFalse);
+      expect(find.byType(TextField), findsOneWidget);
+
       await tester.pumpWidget(const SizedBox.shrink());
       source.dispose();
     },
