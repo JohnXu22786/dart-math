@@ -1,0 +1,37 @@
+name: Publish to pub.dev
+
+on:
+  push:
+    tags:
+      - 'v[0-9]*.[0-9]*.[0-9]*'
+
+jobs:
+  verify-version:
+    name: Verify tag version
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Match tag to package version
+        shell: bash
+        run: |
+          tag_version="${GITHUB_REF_NAME#v}"
+          package_version="$(awk '/^version:[[:space:]]*/ { sub(/^version:[[:space:]]*/, ""); print; exit }' pubspec.yaml)"
+
+          if [[ ! "$tag_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Tag '$GITHUB_REF_NAME' is not a version tag."
+            exit 1
+          fi
+
+          if [[ "$tag_version" != "$package_version" ]]; then
+            echo "::error::Tag version '$tag_version' does not match pubspec.yaml version '$package_version'."
+            exit 1
+          fi
+
+  publish:
+    name: Publish to pub.dev
+    needs: verify-version
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
