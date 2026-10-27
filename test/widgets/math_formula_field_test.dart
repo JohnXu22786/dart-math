@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart' as foundation;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -113,15 +117,17 @@ void main() {
   testWidgets(
     'unsupported WebView platforms keep the built-in formula editor usable',
     (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+      addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
       final source = TextEditingController(text: 'x');
+      final editorKey = GlobalKey<MathFormulaFieldState>();
       var mathematical = false;
       var activated = false;
 
       Widget app() => MaterialApp(
         home: Scaffold(
           body: MathFormulaField(
+            key: editorKey,
             controller: source,
             mathematical: mathematical,
             onModeChanged: (value) => mathematical = value,
@@ -144,12 +150,35 @@ void main() {
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
       expect(mathematical, isTrue);
+      expect(editorKey.currentState!.ready, isTrue);
       expect(find.byType(Math), findsOneWidget);
       expect(find.byType(InAppWebView), findsNothing);
 
       await tester.tap(find.byType(Math));
       await tester.pump();
       expect(activated, isTrue);
+      await editorKey.currentState!.command('insert', '+y');
+      expect(source.text, 'x+y');
+      await editorKey.currentState!.command('navigate', 'left');
+      await editorKey.currentState!.command('insert', 'z');
+      expect(source.text, 'x+zy');
+      await editorKey.currentState!.command('command', 'deleteBackward');
+      expect(source.text, 'x+y');
+      await editorKey.currentState!.command('command', 'undo');
+      expect(source.text, 'x+zy');
+      await editorKey.currentState!.command('command', 'redo');
+      expect(source.text, 'x+y');
+
+      source.value = const TextEditingValue(
+        text: 'x😀',
+        selection: TextSelection.collapsed(offset: 3),
+      );
+      await editorKey.currentState!.command('navigate', 'left');
+      expect(source.selection.extentOffset, 1);
+      await editorKey.currentState!.command('navigate', 'right');
+      expect(source.selection.extentOffset, 3);
+      await editorKey.currentState!.command('command', 'deleteBackward');
+      expect(source.text, 'x');
 
       await tester.tap(find.byTooltip('切换到 LaTeX 源码输入'));
       await tester.pumpWidget(app());
@@ -206,6 +235,170 @@ void main() {
     expect(editorKey.currentState, same(state));
     await tester.enterText(find.byType(TextField), r'\sqrt{x+1}');
     expect(source.text, r'\sqrt{x+1}');
+    await tester.pumpWidget(const SizedBox.shrink());
+    source.dispose();
+  });
+
+  testWidgets('formula fallback copies only a nonempty selection', (
+    tester,
+  ) async {
+    foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
+    final copiedText = <String>[];
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        final arguments = Map<String, dynamic>.from(call.arguments as Map);
+        copiedText.add(arguments['text'] as String);
+      }
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    final source = TextEditingController(text: 'x+y');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MathFormulaField(
+            controller: source,
+            mathematical: true,
+            onModeChanged: (_) {},
+            onActivate: () {},
+            onChanged: () {},
+            onSubmitted: () {},
+            label: '公式 1',
+          ),
+        ),
+      ),
+    );
+    final editor = tester.state<MathFormulaFieldState>(
+      find.byType(MathFormulaField),
+    );
+
+    source.selection = const TextSelection.collapsed(offset: 3);
+    await editor.clipboard('copy');
+    source.selection = const TextSelection(baseOffset: 0, extentOffset: 1);
+    await editor.clipboard('copy');
+
+    expect(copiedText, ['x']);
+    await tester.pumpWidget(const SizedBox.shrink());
+    source.dispose();
+  });
+
+  testWidgets('formula fallback vertical navigation preserves the column', (
+    tester,
+  ) async {
+    foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
+
+    final source = TextEditingController(
+      text: 'abc\nx\n12345',
+      selection: const TextSelection.collapsed(offset: 2),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MathFormulaField(
+            controller: source,
+            mathematical: true,
+            onModeChanged: (_) {},
+            onActivate: () {},
+            onChanged: () {},
+            onSubmitted: () {},
+            label: '公式 1',
+          ),
+        ),
+      ),
+    );
+    final editor = tester.state<MathFormulaFieldState>(
+      find.byType(MathFormulaField),
+    );
+
+    await editor.command('navigate', 'down');
+    expect(source.selection.extentOffset, 5);
+    await editor.command('navigate', 'down');
+    expect(source.selection.extentOffset, 8);
+    await editor.command('navigate', 'up');
+    expect(source.selection.extentOffset, 5);
+    await editor.command('navigate', 'up');
+    expect(source.selection.extentOffset, 2);
+
+    source.value = const TextEditingValue(
+      text: 'a\n😀b\nxy',
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    await editor.command('navigate', 'down');
+    expect(source.selection.extentOffset, 4);
+    await editor.command('navigate', 'down');
+    expect(source.selection.extentOffset, 7);
+    await editor.command('navigate', 'up');
+    expect(source.selection.extentOffset, 4);
+
+    source.value = const TextEditingValue(
+      text: 'a\ne\u0301b\nxy',
+      selection: TextSelection.collapsed(offset: 1),
+    );
+    await editor.command('navigate', 'down');
+    expect(source.selection.extentOffset, 4);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    source.dispose();
+  });
+
+  testWidgets('formula fallback cut leaves a changed selection untouched', (
+    tester,
+  ) async {
+    foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
+    final clipboardWrite = Completer<void>();
+    final copiedText = <String>[];
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        final arguments = Map<String, dynamic>.from(call.arguments as Map);
+        copiedText.add(arguments['text'] as String);
+        await clipboardWrite.future;
+      }
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    final source = TextEditingController(
+      text: 'x+y',
+      selection: const TextSelection(baseOffset: 0, extentOffset: 1),
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MathFormulaField(
+            controller: source,
+            mathematical: true,
+            onModeChanged: (_) {},
+            onActivate: () {},
+            onChanged: () {},
+            onSubmitted: () {},
+            label: '公式 1',
+          ),
+        ),
+      ),
+    );
+    final editor = tester.state<MathFormulaFieldState>(
+      find.byType(MathFormulaField),
+    );
+
+    final cut = editor.clipboard('cut');
+    source.selection = const TextSelection.collapsed(offset: 3);
+    clipboardWrite.complete();
+    await cut;
+
+    expect(copiedText, ['x']);
+    expect(source.text, 'x+y');
+    expect(source.selection, const TextSelection.collapsed(offset: 3));
+
     await tester.pumpWidget(const SizedBox.shrink());
     source.dispose();
   });
