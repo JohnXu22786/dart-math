@@ -8,6 +8,19 @@ import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:visual_math/visual_math.dart';
 
+Future<void> _withTargetPlatformOverride(
+  TargetPlatform targetPlatform,
+  Future<void> Function() body,
+) async {
+  final previous = foundation.debugDefaultTargetPlatformOverride;
+  foundation.debugDefaultTargetPlatformOverride = targetPlatform;
+  try {
+    await body();
+  } finally {
+    foundation.debugDefaultTargetPlatformOverride = previous;
+  }
+}
+
 void main() {
   testWidgets(
     'math input row keeps the regular source height for a tall rendered formula',
@@ -117,87 +130,93 @@ void main() {
   testWidgets(
     'unsupported WebView platforms keep the built-in formula editor usable',
     (tester) async {
-      foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-      addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
-      final source = TextEditingController(text: 'x');
-      final editorKey = GlobalKey<MathFormulaFieldState>();
-      var mathematical = false;
-      var activated = false;
+      await _withTargetPlatformOverride(TargetPlatform.linux, () async {
+        final source = TextEditingController(text: 'x');
+        final editorKey = GlobalKey<MathFormulaFieldState>();
+        var mathematical = false;
+        var activated = false;
 
-      Widget app() => MaterialApp(
-        home: Scaffold(
-          body: MathFormulaField(
-            key: editorKey,
-            controller: source,
-            mathematical: mathematical,
-            onModeChanged: (value) => mathematical = value,
-            onActivate: () => activated = true,
-            onChanged: () {},
-            onSubmitted: () {},
-            label: '公式 1',
+        Widget app() => MaterialApp(
+          home: Scaffold(
+            body: MathFormulaField(
+              key: editorKey,
+              controller: source,
+              mathematical: mathematical,
+              onModeChanged: (value) => mathematical = value,
+              onActivate: () => activated = true,
+              onChanged: () {},
+              onSubmitted: () {},
+              label: '公式 1',
+            ),
           ),
-        ),
-      );
+        );
 
-      await tester.pumpWidget(app());
+        await tester.pumpWidget(app());
 
-      expect(MathFormulaField.supported, isFalse);
-      expect(find.byType(InAppWebView), findsNothing);
-      expect(find.byTooltip('切换到数学键盘（内置公式预览）'), findsOneWidget);
-      expect(find.byType(TextField), findsOneWidget);
+        expect(MathFormulaField.supported, isFalse);
+        expect(find.byType(InAppWebView), findsNothing);
+        expect(find.byTooltip('切换到数学键盘（内置公式预览）'), findsOneWidget);
+        expect(find.byType(TextField), findsOneWidget);
 
-      await tester.tap(find.byTooltip('切换到数学键盘（内置公式预览）'));
-      await tester.pumpWidget(app());
-      await tester.pumpAndSettle();
-      expect(mathematical, isTrue);
-      expect(editorKey.currentState!.ready, isTrue);
-      expect(find.byType(Math), findsOneWidget);
-      expect(find.byType(InAppWebView), findsNothing);
+        await tester.tap(find.byTooltip('切换到数学键盘（内置公式预览）'));
+        await tester.pumpWidget(app());
+        await tester.pumpAndSettle();
+        expect(mathematical, isTrue);
+        expect(editorKey.currentState!.ready, isTrue);
+        expect(find.byType(Math), findsOneWidget);
+        expect(find.byType(InAppWebView), findsNothing);
 
-      await tester.tap(find.byType(Math));
-      await tester.pump();
-      expect(activated, isTrue);
-      await editorKey.currentState!.command('insert', '+y');
-      expect(source.text, 'x+y');
-      await editorKey.currentState!.command('navigate', 'left');
-      await editorKey.currentState!.command('insert', 'z');
-      expect(source.text, 'x+zy');
-      await editorKey.currentState!.command('command', 'deleteBackward');
-      expect(source.text, 'x+y');
-      await editorKey.currentState!.command('command', 'undo');
-      expect(source.text, 'x+zy');
-      await editorKey.currentState!.command('command', 'redo');
-      expect(source.text, 'x+y');
+        final previewGesture = find
+            .ancestor(
+              of: find.byType(Math),
+              matching: find.byType(GestureDetector),
+            )
+            .last;
+        await tester.tap(previewGesture);
+        await tester.pump();
+        expect(activated, isTrue);
+        await editorKey.currentState!.command('insert', '+y');
+        expect(source.text, 'x+y');
+        await editorKey.currentState!.command('navigate', 'left');
+        await editorKey.currentState!.command('insert', 'z');
+        expect(source.text, 'x+zy');
+        await editorKey.currentState!.command('command', 'deleteBackward');
+        expect(source.text, 'x+y');
+        await editorKey.currentState!.command('command', 'undo');
+        expect(source.text, 'x+zy');
+        await editorKey.currentState!.command('command', 'redo');
+        expect(source.text, 'x+y');
 
-      source.value = const TextEditingValue(
-        text: 'x😀',
-        selection: TextSelection.collapsed(offset: 3),
-      );
-      await editorKey.currentState!.command('navigate', 'left');
-      expect(source.selection.extentOffset, 1);
-      await editorKey.currentState!.command('navigate', 'right');
-      expect(source.selection.extentOffset, 3);
-      await editorKey.currentState!.command('command', 'deleteBackward');
-      expect(source.text, 'x');
+        source.value = const TextEditingValue(
+          text: 'x😀',
+          selection: TextSelection.collapsed(offset: 3),
+        );
+        await editorKey.currentState!.command('navigate', 'left');
+        expect(source.selection.extentOffset, 1);
+        await editorKey.currentState!.command('navigate', 'right');
+        expect(source.selection.extentOffset, 3);
+        await editorKey.currentState!.command('command', 'deleteBackward');
+        expect(source.text, 'x');
 
-      source.value = const TextEditingValue(
-        text: 'word',
-        selection: TextSelection(baseOffset: 0, extentOffset: 4),
-      );
-      await editorKey.currentState!.command('insert', 'word');
-      expect(source.text, 'word');
-      expect(source.selection, const TextSelection.collapsed(offset: 4));
-      await editorKey.currentState!.command('insert', '!');
-      expect(source.text, 'word!');
+        source.value = const TextEditingValue(
+          text: 'word',
+          selection: TextSelection(baseOffset: 0, extentOffset: 4),
+        );
+        await editorKey.currentState!.command('insert', 'word');
+        expect(source.text, 'word');
+        expect(source.selection, const TextSelection.collapsed(offset: 4));
+        await editorKey.currentState!.command('insert', '!');
+        expect(source.text, 'word!');
 
-      await tester.tap(find.byTooltip('切换到 LaTeX 源码输入'));
-      await tester.pumpWidget(app());
-      await tester.pumpAndSettle();
-      expect(mathematical, isFalse);
-      expect(find.byType(TextField), findsOneWidget);
+        await tester.tap(find.byTooltip('切换到 LaTeX 源码输入'));
+        await tester.pumpWidget(app());
+        await tester.pumpAndSettle();
+        expect(mathematical, isFalse);
+        expect(find.byType(TextField), findsOneWidget);
 
-      await tester.pumpWidget(const SizedBox.shrink());
-      source.dispose();
+        await tester.pumpWidget(const SizedBox.shrink());
+        source.dispose();
+      });
     },
   );
 
@@ -252,144 +271,195 @@ void main() {
   testWidgets('formula fallback copies only a nonempty selection', (
     tester,
   ) async {
-    foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
-    final copiedText = <String>[];
-    final messenger = tester.binding.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') {
-        final arguments = Map<String, dynamic>.from(call.arguments as Map);
-        copiedText.add(arguments['text'] as String);
-      }
-      return null;
-    });
-    addTearDown(
-      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
-    );
+    await _withTargetPlatformOverride(TargetPlatform.linux, () async {
+      final copiedText = <String>[];
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final arguments = Map<String, dynamic>.from(call.arguments as Map);
+          copiedText.add(arguments['text'] as String);
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
 
-    final source = TextEditingController(text: 'x+y');
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MathFormulaField(
-            controller: source,
-            mathematical: true,
-            onModeChanged: (_) {},
-            onActivate: () {},
-            onChanged: () {},
-            onSubmitted: () {},
-            label: '公式 1',
+      final source = TextEditingController(text: 'x+y');
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MathFormulaField(
+              controller: source,
+              mathematical: true,
+              onModeChanged: (_) {},
+              onActivate: () {},
+              onChanged: () {},
+              onSubmitted: () {},
+              label: '公式 1',
+            ),
           ),
         ),
-      ),
-    );
-    final editor = tester.state<MathFormulaFieldState>(
-      find.byType(MathFormulaField),
-    );
+      );
+      final editor = tester.state<MathFormulaFieldState>(
+        find.byType(MathFormulaField),
+      );
 
-    source.selection = const TextSelection.collapsed(offset: 3);
-    await editor.clipboard('copy');
-    source.selection = const TextSelection(baseOffset: 0, extentOffset: 1);
-    await editor.clipboard('copy');
+      source.selection = const TextSelection.collapsed(offset: 3);
+      await editor.clipboard('copy');
+      source.selection = const TextSelection(baseOffset: 0, extentOffset: 1);
+      await editor.clipboard('copy');
 
-    expect(copiedText, ['x']);
-    await tester.pumpWidget(const SizedBox.shrink());
-    source.dispose();
+      expect(copiedText, ['x']);
+      await tester.pumpWidget(const SizedBox.shrink());
+      source.dispose();
+    });
   });
 
   testWidgets('formula fallback vertical navigation preserves the column', (
     tester,
   ) async {
-    foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
-
-    final source = TextEditingController.fromValue(
-      const TextEditingValue(
-        text: 'abc\nx\n12345',
-        selection: TextSelection.collapsed(offset: 2),
-      ),
-    );
-    await tester.pumpWidget(
-      MaterialApp(
-        home: Scaffold(
-          body: MathFormulaField(
-            controller: source,
-            mathematical: true,
-            onModeChanged: (_) {},
-            onActivate: () {},
-            onChanged: () {},
-            onSubmitted: () {},
-            label: '公式 1',
+    await _withTargetPlatformOverride(TargetPlatform.linux, () async {
+      final source = TextEditingController.fromValue(
+        const TextEditingValue(
+          text: 'abc\nx\n12345',
+          selection: TextSelection.collapsed(offset: 2),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MathFormulaField(
+              controller: source,
+              mathematical: true,
+              onModeChanged: (_) {},
+              onActivate: () {},
+              onChanged: () {},
+              onSubmitted: () {},
+              label: '公式 1',
+            ),
           ),
         ),
-      ),
-    );
-    final editor = tester.state<MathFormulaFieldState>(
-      find.byType(MathFormulaField),
-    );
+      );
+      final editor = tester.state<MathFormulaFieldState>(
+        find.byType(MathFormulaField),
+      );
 
-    await editor.command('navigate', 'down');
-    expect(source.selection.extentOffset, 5);
-    await editor.command('navigate', 'down');
-    expect(source.selection.extentOffset, 8);
-    await editor.command('navigate', 'up');
-    expect(source.selection.extentOffset, 5);
-    await editor.command('navigate', 'up');
-    expect(source.selection.extentOffset, 2);
+      await editor.command('navigate', 'down');
+      expect(source.selection.extentOffset, 5);
+      await editor.command('navigate', 'down');
+      expect(source.selection.extentOffset, 8);
+      await editor.command('navigate', 'up');
+      expect(source.selection.extentOffset, 5);
+      await editor.command('navigate', 'up');
+      expect(source.selection.extentOffset, 2);
 
-    source.value = const TextEditingValue(
-      text: 'a\n😀b\nxy',
-      selection: TextSelection.collapsed(offset: 1),
-    );
-    await editor.command('navigate', 'down');
-    expect(source.selection.extentOffset, 4);
-    await editor.command('navigate', 'down');
-    expect(source.selection.extentOffset, 7);
-    await editor.command('navigate', 'up');
-    expect(source.selection.extentOffset, 4);
+      source.value = const TextEditingValue(
+        text: 'a\n😀b\nxy',
+        selection: TextSelection.collapsed(offset: 1),
+      );
+      await editor.command('navigate', 'down');
+      expect(source.selection.extentOffset, 4);
+      await editor.command('navigate', 'down');
+      expect(source.selection.extentOffset, 7);
+      await editor.command('navigate', 'up');
+      expect(source.selection.extentOffset, 4);
 
-    source.value = const TextEditingValue(
-      text: 'a\ne\u0301b\nxy',
-      selection: TextSelection.collapsed(offset: 1),
-    );
-    await editor.command('navigate', 'down');
-    expect(source.selection.extentOffset, 4);
+      source.value = const TextEditingValue(
+        text: 'a\ne\u0301b\nxy',
+        selection: TextSelection.collapsed(offset: 1),
+      );
+      await editor.command('navigate', 'down');
+      expect(source.selection.extentOffset, 4);
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    source.dispose();
+      await tester.pumpWidget(const SizedBox.shrink());
+      source.dispose();
+    });
   });
 
   testWidgets('formula fallback cut leaves a changed selection untouched', (
     tester,
   ) async {
-    foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
-    final clipboardWrite = Completer<void>();
-    final copiedText = <String>[];
-    final messenger = tester.binding.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') {
-        final arguments = Map<String, dynamic>.from(call.arguments as Map);
-        copiedText.add(arguments['text'] as String);
-        await clipboardWrite.future;
-      }
-      return null;
-    });
-    addTearDown(
-      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
-    );
+    await _withTargetPlatformOverride(TargetPlatform.linux, () async {
+      final clipboardWrite = Completer<void>();
+      final copiedText = <String>[];
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          final arguments = Map<String, dynamic>.from(call.arguments as Map);
+          copiedText.add(arguments['text'] as String);
+          await clipboardWrite.future;
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
 
-    final source = TextEditingController.fromValue(
-      const TextEditingValue(
-        text: 'x+y',
-        selection: TextSelection(baseOffset: 0, extentOffset: 1),
-      ),
-    );
-    await tester.pumpWidget(
-      MaterialApp(
+      final source = TextEditingController.fromValue(
+        const TextEditingValue(
+          text: 'x+y',
+          selection: TextSelection(baseOffset: 0, extentOffset: 1),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MathFormulaField(
+              controller: source,
+              mathematical: true,
+              onModeChanged: (_) {},
+              onActivate: () {},
+              onChanged: () {},
+              onSubmitted: () {},
+              label: '公式 1',
+            ),
+          ),
+        ),
+      );
+      final editor = tester.state<MathFormulaFieldState>(
+        find.byType(MathFormulaField),
+      );
+
+      final cut = editor.clipboard('cut');
+      source.selection = const TextSelection.collapsed(offset: 3);
+      clipboardWrite.complete();
+      await cut;
+
+      expect(copiedText, ['x']);
+      expect(source.text, 'x+y');
+      expect(source.selection, const TextSelection.collapsed(offset: 3));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      source.dispose();
+    });
+  });
+
+  testWidgets('formula fallback cut does not edit a replacement controller', (
+    tester,
+  ) async {
+    await _withTargetPlatformOverride(TargetPlatform.linux, () async {
+      final clipboardWrite = Completer<void>();
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') await clipboardWrite.future;
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      final original = TextEditingController.fromValue(
+        const TextEditingValue(
+          text: 'x+y',
+          selection: TextSelection(baseOffset: 0, extentOffset: 1),
+        ),
+      );
+      final replacement = TextEditingController.fromValue(original.value);
+      Widget app(TextEditingController controller) => MaterialApp(
         home: Scaffold(
           body: MathFormulaField(
-            controller: source,
+            controller: controller,
             mathematical: true,
             onModeChanged: (_) {},
             onActivate: () {},
@@ -398,80 +468,28 @@ void main() {
             label: '公式 1',
           ),
         ),
-      ),
-    );
-    final editor = tester.state<MathFormulaFieldState>(
-      find.byType(MathFormulaField),
-    );
+      );
 
-    final cut = editor.clipboard('cut');
-    source.selection = const TextSelection.collapsed(offset: 3);
-    clipboardWrite.complete();
-    await cut;
+      await tester.pumpWidget(app(original));
+      final editor = tester.state<MathFormulaFieldState>(
+        find.byType(MathFormulaField),
+      );
+      final cut = editor.clipboard('cut');
+      await tester.pumpWidget(app(replacement));
+      clipboardWrite.complete();
+      await cut;
 
-    expect(copiedText, ['x']);
-    expect(source.text, 'x+y');
-    expect(source.selection, const TextSelection.collapsed(offset: 3));
+      expect(original.text, 'x+y');
+      expect(replacement.text, 'x+y');
+      expect(
+        replacement.selection,
+        const TextSelection(baseOffset: 0, extentOffset: 1),
+      );
 
-    await tester.pumpWidget(const SizedBox.shrink());
-    source.dispose();
-  });
-
-  testWidgets('formula fallback cut does not edit a replacement controller', (
-    tester,
-  ) async {
-    foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
-    addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
-    final clipboardWrite = Completer<void>();
-    final messenger = tester.binding.defaultBinaryMessenger;
-    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-      if (call.method == 'Clipboard.setData') await clipboardWrite.future;
-      return null;
+      await tester.pumpWidget(const SizedBox.shrink());
+      original.dispose();
+      replacement.dispose();
     });
-    addTearDown(
-      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
-    );
-
-    final original = TextEditingController.fromValue(
-      const TextEditingValue(
-        text: 'x+y',
-        selection: TextSelection(baseOffset: 0, extentOffset: 1),
-      ),
-    );
-    final replacement = TextEditingController.fromValue(original.value);
-    Widget app(TextEditingController controller) => MaterialApp(
-      home: Scaffold(
-        body: MathFormulaField(
-          controller: controller,
-          mathematical: true,
-          onModeChanged: (_) {},
-          onActivate: () {},
-          onChanged: () {},
-          onSubmitted: () {},
-          label: '公式 1',
-        ),
-      ),
-    );
-
-    await tester.pumpWidget(app(original));
-    final editor = tester.state<MathFormulaFieldState>(
-      find.byType(MathFormulaField),
-    );
-    final cut = editor.clipboard('cut');
-    await tester.pumpWidget(app(replacement));
-    clipboardWrite.complete();
-    await cut;
-
-    expect(original.text, 'x+y');
-    expect(replacement.text, 'x+y');
-    expect(
-      replacement.selection,
-      const TextSelection(baseOffset: 0, extentOffset: 1),
-    );
-
-    await tester.pumpWidget(const SizedBox.shrink());
-    original.dispose();
-    replacement.dispose();
   });
 
   testWidgets('late rendered messages cannot overwrite a new source draft', (

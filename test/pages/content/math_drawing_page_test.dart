@@ -388,7 +388,7 @@ void editorInteractionTests() {
     final lastField = find.byType(MathFormulaField).last;
     await tester.ensureVisible(lastField);
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('切换到数学键盘').last);
+    await tester.tap(find.byTooltip('切换到数学键盘（内置公式预览）').last);
     await tester.pumpAndSettle();
 
     final formulaViewport = tester.getRect(find.byType(ListView).first);
@@ -538,7 +538,7 @@ void editorInteractionTests() {
     expect(find.text('下一项'), findsNothing);
     await tester.tap(find.text('2D'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('切换到系统键盘 / LaTeX 源码'));
+    await tester.tap(find.byTooltip('切换到 LaTeX 源码输入'));
     await tester.pumpAndSettle();
     expect(
       tester.widget<TextField>(find.byType(TextField)).controller!.text,
