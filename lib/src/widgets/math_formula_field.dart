@@ -70,7 +70,7 @@ class MathFormulaFieldState extends State<MathFormulaField>
   int _revision = 0;
   int _sequence = -1;
   String _lastSource = '';
-  TextSelection _lastSelection = TextSelection.invalid;
+  late TextSelection _lastSelection;
   int? _preferredVerticalColumn;
   String? _failure;
   ColorScheme? _colorScheme;
@@ -378,7 +378,12 @@ class MathFormulaFieldState extends State<MathFormulaField>
     String replacement,
   ) {
     final updated = text.replaceRange(start, end, replacement);
-    if (updated == text) return;
+    if (updated == text) {
+      widget.controller.selection = TextSelection.collapsed(
+        offset: start + replacement.length,
+      );
+      return;
+    }
     _fallbackUndo.add(widget.controller.value);
     _fallbackRedo.clear();
     _applyFallbackValue(
@@ -410,8 +415,9 @@ class MathFormulaFieldState extends State<MathFormulaField>
 
   Future<void> clipboard(String action) async {
     if (_usesFallback) {
-      final text = widget.controller.text;
-      final selection = widget.controller.selection;
+      final controller = widget.controller;
+      final text = controller.text;
+      final selection = controller.selection;
       final start = selection.isValid
           ? selection.start.clamp(0, text.length).toInt()
           : 0;
@@ -428,11 +434,13 @@ class MathFormulaFieldState extends State<MathFormulaField>
           ClipboardData(text: text.substring(start, end)),
         );
       } else if (action == 'cut' && selection.isValid && start != end) {
-        final selectedValue = widget.controller.value;
+        final selectedValue = controller.value;
         await Clipboard.setData(
           ClipboardData(text: text.substring(start, end)),
         );
-        if (mounted && widget.controller.value == selectedValue) {
+        if (mounted &&
+            identical(widget.controller, controller) &&
+            controller.value == selectedValue) {
           _replaceFallbackText(text, start, end, '');
         }
       }

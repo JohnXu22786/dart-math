@@ -180,6 +180,16 @@ void main() {
       await editorKey.currentState!.command('command', 'deleteBackward');
       expect(source.text, 'x');
 
+      source.value = const TextEditingValue(
+        text: 'word',
+        selection: TextSelection(baseOffset: 0, extentOffset: 4),
+      );
+      await editorKey.currentState!.command('insert', 'word');
+      expect(source.text, 'word');
+      expect(source.selection, const TextSelection.collapsed(offset: 4));
+      await editorKey.currentState!.command('insert', '!');
+      expect(source.text, 'word!');
+
       await tester.tap(find.byTooltip('切换到 LaTeX 源码输入'));
       await tester.pumpWidget(app());
       await tester.pumpAndSettle();
@@ -293,9 +303,11 @@ void main() {
     foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
     addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
 
-    final source = TextEditingController(
-      text: 'abc\nx\n12345',
-      selection: const TextSelection.collapsed(offset: 2),
+    final source = TextEditingController.fromValue(
+      const TextEditingValue(
+        text: 'abc\nx\n12345',
+        selection: TextSelection.collapsed(offset: 2),
+      ),
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -367,9 +379,11 @@ void main() {
       () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
     );
 
-    final source = TextEditingController(
-      text: 'x+y',
-      selection: const TextSelection(baseOffset: 0, extentOffset: 1),
+    final source = TextEditingController.fromValue(
+      const TextEditingValue(
+        text: 'x+y',
+        selection: TextSelection(baseOffset: 0, extentOffset: 1),
+      ),
     );
     await tester.pumpWidget(
       MaterialApp(
@@ -401,6 +415,63 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     source.dispose();
+  });
+
+  testWidgets('formula fallback cut does not edit a replacement controller', (
+    tester,
+  ) async {
+    foundation.debugDefaultTargetPlatformOverride = TargetPlatform.linux;
+    addTearDown(() => foundation.debugDefaultTargetPlatformOverride = null);
+    final clipboardWrite = Completer<void>();
+    final messenger = tester.binding.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') await clipboardWrite.future;
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    final original = TextEditingController.fromValue(
+      const TextEditingValue(
+        text: 'x+y',
+        selection: TextSelection(baseOffset: 0, extentOffset: 1),
+      ),
+    );
+    final replacement = TextEditingController.fromValue(original.value);
+    Widget app(TextEditingController controller) => MaterialApp(
+      home: Scaffold(
+        body: MathFormulaField(
+          controller: controller,
+          mathematical: true,
+          onModeChanged: (_) {},
+          onActivate: () {},
+          onChanged: () {},
+          onSubmitted: () {},
+          label: '公式 1',
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app(original));
+    final editor = tester.state<MathFormulaFieldState>(
+      find.byType(MathFormulaField),
+    );
+    final cut = editor.clipboard('cut');
+    await tester.pumpWidget(app(replacement));
+    clipboardWrite.complete();
+    await cut;
+
+    expect(original.text, 'x+y');
+    expect(replacement.text, 'x+y');
+    expect(
+      replacement.selection,
+      const TextSelection(baseOffset: 0, extentOffset: 1),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    original.dispose();
+    replacement.dispose();
   });
 
   testWidgets('late rendered messages cannot overwrite a new source draft', (
