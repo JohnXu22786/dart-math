@@ -73,6 +73,7 @@ void main() {
       await tester.pump();
       // Camera should have changed
       final afterDrag = state.camera;
+      expect(afterDrag.theta, isNot(closeTo(initialCamera.theta, 1e-10)));
       // Reset
       state.resetView();
       await tester.pump();

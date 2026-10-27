@@ -166,8 +166,8 @@ void main() {
     expect(edge, isNot(const Color(0xFF2196F3)));
     expect(edge, isNot(Colors.black));
     expect(edge, isNot(Colors.white));
-    expect(edge.blue, greaterThan(edge.red));
-    expect(edge.blue, greaterThan(edge.green));
+    expect(edge.b, greaterThan(edge.r));
+    expect(edge.b, greaterThan(edge.g));
   });
 
   test('polyhedron edge strokes render after an incident face fill', () {

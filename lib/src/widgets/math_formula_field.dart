@@ -98,9 +98,10 @@ class MathFormulaFieldState extends State<MathFormulaField>
         '#${color.toARGB32().toRadixString(16).substring(2)}';
     return _enqueue(() async {
       await _web!.evaluateJavascript(
-          source:
-              'window.stroomMath.theme(${jsonEncode(css(colors.onSurface))},'
-              '${jsonEncode(css(colors.primary))})');
+        source:
+            'window.stroomMath.theme(${jsonEncode(css(colors.onSurface))},'
+            '${jsonEncode(css(colors.primary))})',
+      );
     });
   }
 
@@ -143,8 +144,8 @@ class MathFormulaFieldState extends State<MathFormulaField>
     return _enqueue(() async {
       if (!_ready || version != _revision) return;
       final result = await _web!.evaluateJavascript(
-          source:
-              'window.stroomMath.setSource(${jsonEncode(source)}, $version)');
+        source: 'window.stroomMath.setSource(${jsonEncode(source)}, $version)',
+      );
       _acceptResult(result);
     });
   }
@@ -188,12 +189,13 @@ class MathFormulaFieldState extends State<MathFormulaField>
 
   /// Queue commands and consume their returned snapshot before page actions.
   Future<void> command(String kind, String value) => _enqueue(() async {
-        if (!_ready || _failure != null) return;
-        final result = await _web!.evaluateJavascript(
-            source:
-                'window.stroomMath.command(${jsonEncode(kind)}, ${jsonEncode(value)})');
-        _acceptResult(result);
-      });
+    if (!_ready || _failure != null) return;
+    final result = await _web!.evaluateJavascript(
+      source:
+          'window.stroomMath.command(${jsonEncode(kind)}, ${jsonEncode(value)})',
+    );
+    _acceptResult(result);
+  });
 
   Future<void> clipboard(String action) async {
     if (action == 'paste') {
@@ -203,26 +205,31 @@ class MathFormulaFieldState extends State<MathFormulaField>
     }
     await _enqueue(() async {
       if (!_ready) return;
-      final value = await _web!
-          .evaluateJavascript(source: 'window.stroomMath.selectedLatex()');
+      final value = await _web!.evaluateJavascript(
+        source: 'window.stroomMath.selectedLatex()',
+      );
       if (value is String && value.isNotEmpty) {
         await Clipboard.setData(ClipboardData(text: value));
         if (action == 'cut') {
-          _acceptResult(await _web!.evaluateJavascript(
-              source:
-                  'window.stroomMath.command("command", "deleteBackward")'));
+          _acceptResult(
+            await _web!.evaluateJavascript(
+              source: 'window.stroomMath.command("command", "deleteBackward")',
+            ),
+          );
         }
       }
     });
   }
 
   Future<void> flush() => _enqueue(() async {
-        if (!_ready) return;
-        _acceptResult(await _web!
-            .evaluateJavascript(source: 'window.stroomMath.snapshot()'));
-      });
+    if (!_ready) return;
+    _acceptResult(
+      await _web!.evaluateJavascript(source: 'window.stroomMath.snapshot()'),
+    );
+  });
 
   Future<void> activate() async {
+    super.activate();
     _sourceFocus.unfocus();
     await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
     widget.onActivate();
@@ -233,9 +240,9 @@ class MathFormulaFieldState extends State<MathFormulaField>
   }
 
   Future<void> dismiss() => _enqueue(() async {
-        if (_ready)
-          await _web!.evaluateJavascript(source: 'window.stroomMath.blur()');
-      });
+    if (_ready)
+      await _web!.evaluateJavascript(source: 'window.stroomMath.blur()');
+  });
 
   Future<void> _toggle() async {
     await flush();
@@ -263,29 +270,31 @@ class MathFormulaFieldState extends State<MathFormulaField>
   Widget build(BuildContext context) {
     super.build(context);
     final cs = Theme.of(context).colorScheme;
-    final mathematicalMode = widget.mathematical &&
+    final mathematicalMode =
+        widget.mathematical &&
         (!widget.showWebView || MathFormulaField.supported);
     final toggle = !widget.allowModeSwitch
         ? const SizedBox.shrink()
         : IconButton(
             icon: Icon(
-                mathematicalMode
-                    ? Icons.keyboard
-                    : Icons.calculate_outlined,
-                size: 20),
+              mathematicalMode ? Icons.keyboard : Icons.calculate_outlined,
+              size: 20,
+            ),
             tooltip: widget.showWebView && !MathFormulaField.supported
                 ? '当前平台暂不支持数学编辑，使用 LaTeX 源码输入'
                 : mathematicalMode
-                    ? '切换到系统键盘 / LaTeX 源码'
-                    : '切换到数学键盘',
+                ? '切换到系统键盘 / LaTeX 源码'
+                : '切换到数学键盘',
             onPressed: widget.showWebView && !MathFormulaField.supported
                 ? null
                 : _toggle,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           );
-    return Column(mainAxisSize: MainAxisSize.min, children: [
-      // Offstage preserves structured selection and undo history in MathLive.
-      Offstage(
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Offstage preserves structured selection and undo history in MathLive.
+        Offstage(
           offstage: !mathematicalMode,
           child: Container(
             height: _formulaRowHeight,
@@ -294,116 +303,141 @@ class MathFormulaFieldState extends State<MathFormulaField>
               border: Border.all(color: cs.outline),
               borderRadius: BorderRadius.circular(6),
             ),
-            child: Row(children: [
-              Expanded(
+            child: Row(
+              children: [
+                Expanded(
                   child: SizedBox(
-                height: _formulaInputHeight,
-                child: !widget.showWebView || !MathFormulaField.supported
-                    ? GestureDetector(
-                        behavior: HitTestBehavior.opaque,
-                        onTap: activate,
-                        child: SingleChildScrollView(
-                          scrollDirection: Axis.horizontal,
-                          child: Padding(
-                              padding: const EdgeInsets.all(8),
-                              child: Math.tex(
-                                widget.controller.text.isEmpty
-                                    ? r'\square'
-                                    : widget.controller.text,
-                                textStyle: TextStyle(
-                                    fontSize: 18, color: cs.onSurface),
-                                onErrorFallback: (_) => Text(widget.label),
-                              )),
-                        ),
-                      )
-                    : Stack(children: [
-                        InAppWebView(
-                          initialFile:
-                              'packages/dart_math/assets/vendor/mathlive/editor.html',
-                          initialSettings: InAppWebViewSettings(
-                            javaScriptEnabled: true,
-                            transparentBackground: true,
-                            disableContextMenu: false,
-                            supportZoom: false,
-                          ),
-                          onWebViewCreated: (controller) {
-                            _web = controller;
-                            controller.addJavaScriptHandler(
-                                handlerName: 'StroomMathEditor',
-                                callback: (args) {
-                                  if (!mounted ||
-                                      args.isEmpty ||
-                                      args[0] is! Map) return null;
-                                  final message =
-                                      Map<String, dynamic>.from(args[0] as Map);
-                                  acceptSnapshot(message);
-                                  if (message['revision'] == _revision &&
-                                      (message['type'] == 'focus' ||
-                                          message['type'] == 'tap') &&
-                                      widget.mathematical) {
-                                    widget.onActivate();
-                                  }
-                                  if (message['type'] == 'submit')
-                                    widget.onSubmitted();
-                                  return null;
-                                });
-                          },
-                          onLoadStop: (controller, _) async {
-                            if (!mounted) return;
-                            _ready = true;
-                            await _syncSource();
-                            if (!mounted) return;
-                            await _syncTheme();
-                            if (mounted) {
-                              setState(() {});
-                              widget.onReadyChanged?.call();
-                            }
-                          },
-                          onReceivedError: (_, request, error) {
-                            if (request.isForMainFrame == true && mounted) {
-                              setState(
-                                  () => _failure = '公式编辑器加载失败，可切换到源码继续编辑。');
-                              widget.onReadyChanged?.call();
-                            }
-                          },
-                        ),
-                        if (!_ready || _failure != null)
-                          Center(
-                              child: _failure == null
-                                  ? const SizedBox(
-                                      width: 20,
-                                      height: 20,
-                                      child: CircularProgressIndicator(
-                                          strokeWidth: 2))
-                                  : Padding(
-                                      padding: const EdgeInsets.all(4),
-                                      child: Text(_failure!,
-                                          style: TextStyle(
-                                              fontSize: 12, color: cs.error)))),
-                        if (_hasUnsupportedSyntax)
-                          Positioned.fill(
-                            child: IgnorePointer(
-                              child: Container(
-                                alignment: Alignment.centerLeft,
-                                color: cs.surfaceContainerLow,
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 4),
-                                child: Text(
-                                  '暂不支持此语法，请切换源码',
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style:
-                                      TextStyle(fontSize: 11, color: cs.error),
+                    height: _formulaInputHeight,
+                    child: !widget.showWebView || !MathFormulaField.supported
+                        ? GestureDetector(
+                            behavior: HitTestBehavior.opaque,
+                            onTap: activate,
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Padding(
+                                padding: const EdgeInsets.all(8),
+                                child: Math.tex(
+                                  widget.controller.text.isEmpty
+                                      ? r'\square'
+                                      : widget.controller.text,
+                                  textStyle: TextStyle(
+                                    fontSize: 18,
+                                    color: cs.onSurface,
+                                  ),
+                                  onErrorFallback: (_) => Text(widget.label),
                                 ),
                               ),
                             ),
+                          )
+                        : Stack(
+                            children: [
+                              InAppWebView(
+                                initialFile: 'packages/dart_math/assets/vendor/mathlive/editor.html',
+                                initialSettings: InAppWebViewSettings(
+                                  javaScriptEnabled: true,
+                                  transparentBackground: true,
+                                  disableContextMenu: false,
+                                  supportZoom: false,
+                                ),
+                                onWebViewCreated: (controller) {
+                                  _web = controller;
+                                  controller.addJavaScriptHandler(
+                                    handlerName: 'StroomMathEditor',
+                                    callback: (args) {
+                                      if (!mounted ||
+                                          args.isEmpty ||
+                                          args[0] is! Map)
+                                        return null;
+                                      final message = Map<String, dynamic>.from(
+                                        args[0] as Map,
+                                      );
+                                      acceptSnapshot(message);
+                                      if (message['revision'] == _revision &&
+                                          (message['type'] == 'focus' ||
+                                              message['type'] == 'tap') &&
+                                          widget.mathematical) {
+                                        widget.onActivate();
+                                      }
+                                      if (message['type'] == 'submit')
+                                        widget.onSubmitted();
+                                      return null;
+                                    },
+                                  );
+                                },
+                                onLoadStop: (controller, _) async {
+                                  if (!mounted) return;
+                                  _ready = true;
+                                  await _syncSource();
+                                  if (!mounted) return;
+                                  await _syncTheme();
+                                  if (mounted) {
+                                    setState(() {});
+                                    widget.onReadyChanged?.call();
+                                  }
+                                },
+                                onReceivedError: (_, request, error) {
+                                  if (request.isForMainFrame == true &&
+                                      mounted) {
+                                    setState(
+                                      () => _failure = '公式编辑器加载失败，可切换到源码继续编辑。',
+                                    );
+                                    widget.onReadyChanged?.call();
+                                  }
+                                },
+                              ),
+                              if (!_ready || _failure != null)
+                                Center(
+                                  child: _failure == null
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                          ),
+                                        )
+                                      : Padding(
+                                          padding: const EdgeInsets.all(4),
+                                          child: Text(
+                                            _failure!,
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: cs.error,
+                                            ),
+                                          ),
+                                        ),
+                                ),
+                              if (_hasUnsupportedSyntax)
+                                Positioned.fill(
+                                  child: IgnorePointer(
+                                    child: Container(
+                                      alignment: Alignment.centerLeft,
+                                      color: cs.surfaceContainerLow,
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 6,
+                                        vertical: 4,
+                                      ),
+                                      child: Text(
+                                        '暂不支持此语法，请切换源码',
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: cs.error,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                            ],
                           ),
-                      ]),
-              )),
-              toggle
-            ]),
-          )),
-      Offstage(
+                  ),
+                ),
+                toggle,
+              ],
+            ),
+          ),
+        ),
+        Offstage(
           offstage: mathematicalMode,
           child: TextField(
             controller: widget.controller,
@@ -411,27 +445,38 @@ class MathFormulaFieldState extends State<MathFormulaField>
             decoration: InputDecoration(
               hintText: widget.label,
               isDense: true,
-              contentPadding:
-                  const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              border:
-                  OutlineInputBorder(borderRadius: BorderRadius.circular(6)),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 6,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
               filled: true,
               fillColor: widget.fillColor,
-              suffixIcon: Row(mainAxisSize: MainAxisSize.min, children: [
-                if (widget.onRevert != null)
-                  IconButton(
-                    tooltip: '撤销修改',
-                    icon: const Icon(Icons.undo, size: 16),
-                    onPressed: widget.onRevert,
-                  ),
-                toggle,
-              ]),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (widget.onRevert != null)
+                    IconButton(
+                      tooltip: '撤销修改',
+                      icon: const Icon(Icons.undo, size: 16),
+                      onPressed: widget.onRevert,
+                    ),
+                  toggle,
+                ],
+              ),
             ),
             style: TextStyle(
-                fontFamily: 'monospace', fontSize: 13, color: cs.onSurface),
+              fontFamily: 'monospace',
+              fontSize: 13,
+              color: cs.onSurface,
+            ),
             onChanged: (_) => widget.onChanged(),
             onSubmitted: (_) => widget.onSubmitted(),
-          )),
-    ]);
+          ),
+        ),
+      ],
+    );
   }
 }
