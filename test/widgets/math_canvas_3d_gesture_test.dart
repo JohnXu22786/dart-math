@@ -248,7 +248,7 @@ void main() {
   group('MathCanvas3D - construction tap behavior', () {
     testWidgets('tapping in point tool creates a point object', (tester) async {
       List<Object3D>? createdObjects;
-      final state = await setupCanvas(
+      await setupCanvas(
         tester,
         tool: ConstructionTool.point,
         onObjectCreated: (obj) {
@@ -322,7 +322,7 @@ void main() {
       tester,
     ) async {
       final objects = <Object3D>[];
-      final state = await setupCanvas(
+      await setupCanvas(
         tester,
         tool: ConstructionTool.line,
         onObjectCreated: (obj) {
@@ -353,7 +353,7 @@ void main() {
       'consecutive taps in point tool all create points (no blockage)',
       (tester) async {
         final objects = <Object3D>[];
-        final state = await setupCanvas(
+        await setupCanvas(
           tester,
           tool: ConstructionTool.point,
           onObjectCreated: (obj) {
@@ -381,7 +381,7 @@ void main() {
       tester,
     ) async {
       final objects = <Object3D>[];
-      final state = await setupCanvas(
+      await setupCanvas(
         tester,
         tool: ConstructionTool.sphere,
         onObjectCreated: (obj) {
@@ -411,7 +411,7 @@ void main() {
       tester,
     ) async {
       final objects = <Object3D>[];
-      final state = await setupCanvas(
+      await setupCanvas(
         tester,
         tool: ConstructionTool.plane,
         onObjectCreated: (obj) {
@@ -444,7 +444,7 @@ void main() {
       tester,
     ) async {
       final objects = <Object3D>[];
-      final state = await setupCanvas(
+      await setupCanvas(
         tester,
         tool: ConstructionTool.circle,
         onObjectCreated: (obj) {
@@ -476,7 +476,7 @@ void main() {
       tester,
     ) async {
       final objects = <Object3D>[];
-      final state = await setupCanvas(
+      await setupCanvas(
         tester,
         tool: ConstructionTool.cube,
         onObjectCreated: (obj) {

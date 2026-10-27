@@ -108,10 +108,10 @@ class _MathKeyboardState extends State<MathKeyboard> {
       final renderObject = chipContext?.findRenderObject();
       if (chipContext != null && renderObject != null) {
         Scrollable.of(chipContext).position.ensureVisible(
-              renderObject,
-              alignment: 0.5,
-              duration: const Duration(milliseconds: 180),
-            );
+          renderObject,
+          alignment: 0.5,
+          duration: const Duration(milliseconds: 180),
+        );
       }
     });
   }
@@ -121,7 +121,6 @@ class _MathKeyboardState extends State<MathKeyboard> {
     int newIndex,
     StateSetter setDialogState,
   ) {
-    if (newIndex > oldIndex) newIndex--;
     if (oldIndex == newIndex) return;
     final nextOrder = List<String>.of(_categoryOrder);
     final category = nextOrder.removeAt(oldIndex);
@@ -148,11 +147,8 @@ class _MathKeyboardState extends State<MathKeyboard> {
               child: ReorderableListView.builder(
                 itemCount: _categoryOrder.length,
                 buildDefaultDragHandles: false,
-                onReorder: (oldIndex, newIndex) => _reorderCategories(
-                  oldIndex,
-                  newIndex,
-                  setDialogState,
-                ),
+                onReorderItem: (oldIndex, newIndex) =>
+                    _reorderCategories(oldIndex, newIndex, setDialogState),
                 itemBuilder: (context, index) {
                   final category = _categoryOrder[index];
                   return ListTile(
@@ -258,8 +254,9 @@ class _MathKeyboardState extends State<MathKeyboard> {
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
     final isAlphabetCategory = _category == '字母';
-    final keys =
-        _category == '希腊字母' && _shifted ? _greekUpperKeys : _groups[_category]!;
+    final keys = _category == '希腊字母' && _shifted
+        ? _greekUpperKeys
+        : _groups[_category]!;
     final pageCount = isAlphabetCategory ? 1 : (keys.length / 12).ceil();
     final keysPerPage = (keys.length / pageCount).ceil();
     return Material(
@@ -364,7 +361,7 @@ class _MathKeyboardState extends State<MathKeyboard> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ...heading,
-                      _keyArea(keys, pageCount, keysPerPage)
+                      _keyArea(keys, pageCount, keysPerPage),
                     ],
                   )
                 : _keyArea(keys, pageCount, keysPerPage);
@@ -426,18 +423,21 @@ class _MathKeyboardState extends State<MathKeyboard> {
                             child: _key(
                               col < 3
                                   ? (row * 3 + col < keysPerPage &&
-                                          _page * keysPerPage + row * 3 + col <
-                                              keys.length
-                                      ? keys[
-                                          _page * keysPerPage + row * 3 + col]
-                                      : null)
+                                            _page * keysPerPage +
+                                                    row * 3 +
+                                                    col <
+                                                keys.length
+                                        ? keys[_page * keysPerPage +
+                                              row * 3 +
+                                              col]
+                                        : null)
                                   : _MathKey(
                                       _numbers[row * 3 + col - 3],
                                       _numbers[row * 3 + col - 3],
                                       command:
                                           _numbers[row * 3 + col - 3] == '⌫'
-                                              ? 'deleteBackward'
-                                              : null,
+                                          ? 'deleteBackward'
+                                          : null,
                                     ),
                             ),
                           ),
@@ -497,13 +497,16 @@ class _MathKeyboardState extends State<MathKeyboard> {
                 : null,
             child: GestureDetector(
               behavior: HitTestBehavior.opaque,
-              onHorizontalDragStart:
-                  canSwipePages ? (_) => _keyGridDragDistance = 0 : null,
+              onHorizontalDragStart: canSwipePages
+                  ? (_) => _keyGridDragDistance = 0
+                  : null,
               onHorizontalDragUpdate: canSwipePages ? _updateKeyGridDrag : null,
-              onHorizontalDragEnd:
-                  canSwipePages ? (_) => _endKeyGridDrag(pageCount) : null,
-              onHorizontalDragCancel:
-                  canSwipePages ? () => _keyGridDragDistance = 0 : null,
+              onHorizontalDragEnd: canSwipePages
+                  ? (_) => _endKeyGridDrag(pageCount)
+                  : null,
+              onHorizontalDragCancel: canSwipePages
+                  ? () => _keyGridDragDistance = 0
+                  : null,
               child: keyGrid,
             ),
           ),
@@ -551,135 +554,137 @@ class _MathKeyboardState extends State<MathKeyboard> {
   }
 
   Widget _latinKeys() => Column(
+    children: [
+      Row(
         children: [
-          Row(
-            children: [
-              for (final number in '1234567890'.split(''))
-                _latinCell(_key(_MathKey(number, number))),
-            ],
-          ),
-          for (var row = 0; row < _latinRows.length; row++)
-            Row(
-              children: [
-                if (row == 1) const Spacer(),
-                if (row == 2) _latinCell(_shiftKey(), flex: 3),
-                for (final letter in _latinRows[row].split(''))
-                  _latinCell(
-                    _key(
-                      _MathKey(
-                        _shifted ? letter.toUpperCase() : letter,
-                        _shifted ? letter.toUpperCase() : letter,
-                      ),
-                    ),
-                    flex: row == 0 ? 1 : 2,
-                  ),
-                if (row == 1) const Spacer(),
-                if (row == 2)
-                  _latinCell(
-                    _key(const _MathKey('.', '.', description: '小数点')),
-                    flex: 2,
-                  ),
-                if (row == 2)
-                  _latinCell(
-                    _key(const _MathKey('⌫', '', command: 'deleteBackward')),
-                    flex: 3,
-                  ),
-              ],
-            ),
+          for (final number in '1234567890'.split(''))
+            _latinCell(_key(_MathKey(number, number))),
         ],
-      );
+      ),
+      for (var row = 0; row < _latinRows.length; row++)
+        Row(
+          children: [
+            if (row == 1) const Spacer(),
+            if (row == 2) _latinCell(_shiftKey(), flex: 3),
+            for (final letter in _latinRows[row].split(''))
+              _latinCell(
+                _key(
+                  _MathKey(
+                    _shifted ? letter.toUpperCase() : letter,
+                    _shifted ? letter.toUpperCase() : letter,
+                  ),
+                ),
+                flex: row == 0 ? 1 : 2,
+              ),
+            if (row == 1) const Spacer(),
+            if (row == 2)
+              _latinCell(
+                _key(const _MathKey('.', '.', description: '小数点')),
+                flex: 2,
+              ),
+            if (row == 2)
+              _latinCell(
+                _key(const _MathKey('⌫', '', command: 'deleteBackward')),
+                flex: 3,
+              ),
+          ],
+        ),
+    ],
+  );
 
   Widget _latinCell(Widget child, {int flex = 1}) => Expanded(
-        flex: flex,
-        child: Padding(padding: const EdgeInsets.all(2), child: child),
-      );
+    flex: flex,
+    child: Padding(padding: const EdgeInsets.all(2), child: child),
+  );
 
   void _toggleShift() => setState(() => _shifted = !_shifted);
 
   Widget _shiftKey() => Semantics(
-        key: const ValueKey('math-keyboard-shift'),
-        label: 'Shift',
-        button: true,
-        enabled: widget.enabled,
-        toggled: _shifted,
-        excludeSemantics: true,
-        onTap: widget.enabled ? _toggleShift : null,
-        child: Tooltip(
-          excludeFromSemantics: true,
-          message: _shifted ? 'Shift：大写已开启，切换小写' : 'Shift：小写，切换大写',
-          child: SizedBox(
-            height: 44,
+    key: const ValueKey('math-keyboard-shift'),
+    label: 'Shift',
+    button: true,
+    enabled: widget.enabled,
+    toggled: _shifted,
+    excludeSemantics: true,
+    onTap: widget.enabled ? _toggleShift : null,
+    child: Tooltip(
+      excludeFromSemantics: true,
+      message: _shifted ? 'Shift：大写已开启，切换小写' : 'Shift：小写，切换大写',
+      child: SizedBox(
+        height: 44,
+        child: FilledButton.tonal(
+          style: FilledButton.styleFrom(
+            backgroundColor: _shifted
+                ? Theme.of(context).colorScheme.primary
+                : null,
+            foregroundColor: _shifted
+                ? Theme.of(context).colorScheme.onPrimary
+                : null,
+            padding: const EdgeInsets.all(2),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(6),
+            ),
+          ),
+          onPressed: widget.enabled ? _toggleShift : null,
+          child: Icon(_shifted ? Icons.keyboard_capslock : Icons.arrow_upward),
+        ),
+      ),
+    ),
+  );
+
+  Widget _navigate(IconData icon, String label, String direction) => IconButton(
+    icon: Icon(icon, size: 20),
+    tooltip: label,
+    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+    onPressed: widget.enabled
+        ? () => widget.onCommand('navigate', direction)
+        : null,
+  );
+
+  Widget _action(IconData icon, String label, String command) => IconButton(
+    icon: Icon(icon, size: 20),
+    tooltip: label,
+    constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
+    onPressed: widget.enabled
+        ? () => widget.onCommand('command', command)
+        : null,
+  );
+
+  Widget _key(_MathKey? key) => SizedBox(
+    height: 44,
+    child: key == null
+        ? const SizedBox.shrink()
+        : Tooltip(
+            message: key.description ?? key.label,
             child: FilledButton.tonal(
               style: FilledButton.styleFrom(
-                backgroundColor:
-                    _shifted ? Theme.of(context).colorScheme.primary : null,
-                foregroundColor:
-                    _shifted ? Theme.of(context).colorScheme.onPrimary : null,
                 padding: const EdgeInsets.all(2),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(6),
                 ),
               ),
-              onPressed: widget.enabled ? _toggleShift : null,
-              child:
-                  Icon(_shifted ? Icons.keyboard_capslock : Icons.arrow_upward),
+              onPressed: !widget.enabled
+                  ? null
+                  : () => widget.onCommand(
+                      key.command == null ? 'insert' : 'command',
+                      key.command ?? key.value,
+                    ),
+              child: key.label == '⌫'
+                  ? const Icon(Icons.backspace_outlined, size: 20)
+                  : FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Math.tex(
+                        key.label,
+                        textStyle: const TextStyle(fontSize: 18),
+                        onErrorFallback: (_) => Text(
+                          key.label,
+                          style: const TextStyle(fontSize: 13),
+                        ),
+                      ),
+                    ),
             ),
           ),
-        ),
-      );
-
-  Widget _navigate(IconData icon, String label, String direction) => IconButton(
-        icon: Icon(icon, size: 20),
-        tooltip: label,
-        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-        onPressed: widget.enabled
-            ? () => widget.onCommand('navigate', direction)
-            : null,
-      );
-
-  Widget _action(IconData icon, String label, String command) => IconButton(
-        icon: Icon(icon, size: 20),
-        tooltip: label,
-        constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
-        onPressed:
-            widget.enabled ? () => widget.onCommand('command', command) : null,
-      );
-
-  Widget _key(_MathKey? key) => SizedBox(
-        height: 44,
-        child: key == null
-            ? const SizedBox.shrink()
-            : Tooltip(
-                message: key.description ?? key.label,
-                child: FilledButton.tonal(
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.all(2),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(6),
-                    ),
-                  ),
-                  onPressed: !widget.enabled
-                      ? null
-                      : () => widget.onCommand(
-                            key.command == null ? 'insert' : 'command',
-                            key.command ?? key.value,
-                          ),
-                  child: key.label == '⌫'
-                      ? const Icon(Icons.backspace_outlined, size: 20)
-                      : FittedBox(
-                          fit: BoxFit.scaleDown,
-                          child: Math.tex(
-                            key.label,
-                            textStyle: const TextStyle(fontSize: 18),
-                            onErrorFallback: (_) => Text(
-                              key.label,
-                              style: const TextStyle(fontSize: 13),
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-      );
+  );
 }
 
 class _MathKey {
@@ -799,8 +804,8 @@ class MathNumericKeyboard extends StatelessWidget {
                                   ),
                                 ),
                                 onPressed: () => _press(key),
-                                child: key.action ==
-                                        _NumericMathAction.backspace
+                                child:
+                                    key.action == _NumericMathAction.backspace
                                     ? const Icon(
                                         Icons.backspace_outlined,
                                         size: 20,
@@ -855,13 +860,13 @@ class _NumericMathKey {
     this.label,
     this.value, {
     this.cursorFromEnd,
-    this.action,
     this.description,
-  });
+  }) : action = null;
 
-  const _NumericMathKey.action(this.label, this.action, {this.description})
-      : value = null,
-        cursorFromEnd = null;
+  const _NumericMathKey.action(this.label, this.action)
+    : value = null,
+      cursorFromEnd = null,
+      description = null;
 }
 
 const _defaultCategoryOrder = <String>[
@@ -962,17 +967,18 @@ final Map<String, List<_MathKey>> _groups = {
         _MathKey(
           input.label,
           input.latex,
-          description: [
-            'sin',
-            'cos',
-            'tan',
-            'cot',
-            'sec',
-            'csc',
-            'asin',
-            'acos',
-            'atan',
-          ].contains(input.name)
+          description:
+              [
+                'sin',
+                'cos',
+                'tan',
+                'cot',
+                'sec',
+                'csc',
+                'asin',
+                'acos',
+                'atan',
+              ].contains(input.name)
               ? '${input.name}（角度用弧度）'
               : input.name,
         ),

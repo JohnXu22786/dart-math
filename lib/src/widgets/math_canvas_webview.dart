@@ -9,7 +9,11 @@ import '../models/math_expression.dart';
 /// Callback types for WebView → Flutter communication.
 typedef OnCoordinateUpdate = void Function(List<Map<String, dynamic>> points);
 typedef OnViewportChange = void Function(
-    double xMin, double yMin, double xMax, double yMax);
+  double xMin,
+  double yMin,
+  double xMax,
+  double yMax,
+);
 typedef OnReady = void Function();
 typedef OnError = void Function(String message);
 
@@ -60,8 +64,10 @@ class MathCanvasWebView extends StatefulWidget {
   /// - Dynamic expression updating via window.setExpression()
   /// - Coordinate reporting via onCoordinateUpdate callback
   /// - Viewport change reporting via onViewportChange callback
-  static String buildMathHtml(String jsExpression,
-      {Map<String, double> initialParameters = const {}}) {
+  static String buildMathHtml(
+    String jsExpression, {
+    Map<String, double> initialParameters = const {},
+  }) {
     _boardIdCounter++;
     final boardId = 'jxgbox_$_boardIdCounter';
     final escapedExpr = jsExpression.replaceAll("'", "\\'");
@@ -417,11 +423,13 @@ class MathCanvasWebViewState extends State<MathCanvasWebView> {
 
     // Load initial HTML
     final initialParsed = MathExpression.fromInput(widget.initialExpression);
-    _allowedParameters = initialParsed.isValid &&
+    _allowedParameters =
+        initialParsed.isValid &&
             initialParsed.type == MathExpressionType.explicit
         ? initialParsed.parameters
         : {};
-    final initialExpression = widget.initialExpression.isNotEmpty &&
+    final initialExpression =
+        widget.initialExpression.isNotEmpty &&
             initialParsed.isValid &&
             initialParsed.type == MathExpressionType.explicit
         ? MathExpression.toJsExpression(widget.initialExpression)
@@ -429,13 +437,11 @@ class MathCanvasWebViewState extends State<MathCanvasWebView> {
     final initialParameters = {
       for (final name in _allowedParameters) name: 1.0,
     };
-    final html = MathCanvasWebView.buildMathHtml(initialExpression,
-        initialParameters: initialParameters);
-    controller.loadData(
-      data: html,
-      mimeType: 'text/html',
-      encoding: 'utf8',
+    final html = MathCanvasWebView.buildMathHtml(
+      initialExpression,
+      initialParameters: initialParameters,
     );
+    controller.loadData(data: html, mimeType: 'text/html', encoding: 'utf8');
   }
 
   void _handleWebViewMessage(Map<String, dynamic> message) {
@@ -448,7 +454,8 @@ class MathCanvasWebViewState extends State<MathCanvasWebView> {
         }
         break;
       case 'coordinateUpdate':
-        final points = (message['points'] as List<dynamic>?)
+        final points =
+            (message['points'] as List<dynamic>?)
                 ?.cast<Map<String, dynamic>>() ??
             [];
         widget.onCoordinateUpdate?.call(points);
@@ -471,13 +478,15 @@ class MathCanvasWebViewState extends State<MathCanvasWebView> {
 
   /// Set/update the expression to plot on the canvas.
   Future<void> setExpression(
-      String expression, Map<String, double>? parameters) async {
+    String expression,
+    Map<String, double>? parameters,
+  ) async {
     final ctrl = _webViewController;
     if (ctrl == null) return;
 
     final parsed = MathExpression.fromInput(expression);
-    final isSafeExpression = parsed.isValid &&
-        parsed.type == MathExpressionType.explicit;
+    final isSafeExpression =
+        parsed.isValid && parsed.type == MathExpressionType.explicit;
     _allowedParameters = isSafeExpression ? parsed.parameters : {};
     final jsExpression = isSafeExpression
         ? MathExpression.toJsExpression(expression)
@@ -532,7 +541,11 @@ class MathCanvasWebViewState extends State<MathCanvasWebView> {
 
   /// Set the viewport to specific bounds.
   Future<void> setViewport(
-      double xMin, double yMin, double xMax, double yMax) async {
+    double xMin,
+    double yMin,
+    double xMax,
+    double yMax,
+  ) async {
     final ctrl = _webViewController;
     if (ctrl == null) return;
     if (!xMin.isFinite ||
@@ -576,9 +589,10 @@ class MathCanvasWebViewState extends State<MathCanvasWebView> {
               widget.onReady?.call();
             }
           },
-          onLoadError: (ctrl, url, code, message) {
-            debugPrint('[MathCanvas] Load error: $code $message');
-            widget.onError?.call('WebView加载失败: $message');
+          onReceivedError: (ctrl, request, error) {
+            if (request.isForMainFrame == false) return;
+            debugPrint('[MathCanvas] Load error: ${error.description}');
+            widget.onError?.call('WebView加载失败: ${error.description}');
             if (mounted && !_isReady) {
               setState(() => _isReady = true);
             }

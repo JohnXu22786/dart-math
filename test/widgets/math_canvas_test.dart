@@ -104,20 +104,13 @@ void main() {
   group('MathCanvas - expression handling', () {
     testWidgets('setExpression renders a valid function', (tester) async {
       final key = GlobalKey<MathCanvasState>();
-      bool gotPoints = false;
-
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
             body: SizedBox(
               width: 300,
               height: 300,
-              child: MathCanvas(
-                key: key,
-                onCoordinateUpdate: (points) {
-                  if (points.isNotEmpty) gotPoints = true;
-                },
-              ),
+              child: MathCanvas(key: key),
             ),
           ),
         ),

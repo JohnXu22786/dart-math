@@ -1,5 +1,4 @@
-import 'package:function_tree/function_tree.dart';
-
+import 'math_expression_parser.dart';
 import 'math_3d_object.dart';
 
 /// The type of a 3D expression.
@@ -17,8 +16,7 @@ enum Expression3DType {
 /// Represents a 3D math expression — a surface, parametric curve, or
 /// parametric surface.
 ///
-/// Uses [function_tree] for expression parsing and evaluation, extending
-/// the same approach as the 2D [MathExpression] class.
+/// Uses the same native expression parser as the 2D [MathExpression] class.
 class Expression3D {
   final String rawExpression;
   final String normalizedExpression;
@@ -68,14 +66,14 @@ class Expression3D {
     this.vMin = 0,
     this.vMax = 1,
     String? parseError,
-  })  : _surfaceEvaluator = surfaceEvaluator,
-        _curveX = curveX,
-        _curveY = curveY,
-        _curveZ = curveZ,
-        _surfX = surfX,
-        _surfY = surfY,
-        _surfZ = surfZ,
-        _parseError = parseError;
+  }) : _surfaceEvaluator = surfaceEvaluator,
+       _curveX = curveX,
+       _curveY = curveY,
+       _curveZ = curveZ,
+       _surfX = surfX,
+       _surfY = surfY,
+       _surfZ = surfZ,
+       _parseError = parseError;
 
   // ==================================================================
   // Surface z = f(x, y)
@@ -137,7 +135,7 @@ class Expression3D {
   /// Evaluate the surface at (x, y).
   double evaluateSurface(double x, double y) {
     if (_surfaceEvaluator == null) throw _parseError ?? '无效的曲面表达式';
-    return _surfaceEvaluator!(x, y);
+    return _surfaceEvaluator(x, y);
   }
 
   /// Sample the surface on a grid and return a [SurfaceMesh].
@@ -150,10 +148,7 @@ class Expression3D {
     int gridY = 40,
   }) {
     if (!isValid || _surfaceEvaluator == null) {
-      return const SurfaceMesh(
-        vertices: [],
-        indices: [],
-      );
+      return const SurfaceMesh(vertices: [], indices: []);
     }
 
     return SurfaceMesh.fromFunction(
@@ -163,7 +158,7 @@ class Expression3D {
       yMax: yMax,
       gridX: gridX,
       gridY: gridY,
-      f: _surfaceEvaluator!,
+      f: _surfaceEvaluator,
     );
   }
 
@@ -216,12 +211,21 @@ class Expression3D {
         if (!varNames.contains(key)) varNames.add(key);
       }
 
-      curveX =
-          _createParametricEvaluator(components[0], varNames, parameterValues);
-      curveY =
-          _createParametricEvaluator(components[1], varNames, parameterValues);
-      curveZ =
-          _createParametricEvaluator(components[2], varNames, parameterValues);
+      curveX = _createParametricEvaluator(
+        components[0],
+        varNames,
+        parameterValues,
+      );
+      curveY = _createParametricEvaluator(
+        components[1],
+        varNames,
+        parameterValues,
+      );
+      curveZ = _createParametricEvaluator(
+        components[2],
+        varNames,
+        parameterValues,
+      );
     } catch (e) {
       error = e.toString();
     }
@@ -250,14 +254,16 @@ class Expression3D {
     if (_curveX == null || _curveY == null || _curveZ == null) {
       throw _parseError ?? '无效的参数曲线';
     }
-    return Point3D(_curveX!(t), _curveY!(t), _curveZ!(t));
+    return Point3D(_curveX(t), _curveY(t), _curveZ(t));
   }
 
   /// Sample the curve at [numSamples] points, omitting non-finite results.
   ///
   /// Use [sampleCurveSegments] when separate branches must remain disconnected.
   List<Point3D> sampleCurve({int numSamples = 100}) =>
-      sampleCurveSegments(numSamples: numSamples).expand((segment) => segment).toList();
+      sampleCurveSegments(numSamples: numSamples)
+          .expand((segment) => segment)
+          .toList();
 
   /// Sample the curve into finite, contiguous paths separated at invalid values.
   List<List<Point3D>> sampleCurveSegments({int numSamples = 100}) {
@@ -345,11 +351,20 @@ class Expression3D {
       }
 
       surfX = _createSurfaceParametricEvaluator(
-          components[0], varNames, parameterValues);
+        components[0],
+        varNames,
+        parameterValues,
+      );
       surfY = _createSurfaceParametricEvaluator(
-          components[1], varNames, parameterValues);
+        components[1],
+        varNames,
+        parameterValues,
+      );
       surfZ = _createSurfaceParametricEvaluator(
-          components[2], varNames, parameterValues);
+        components[2],
+        varNames,
+        parameterValues,
+      );
     } catch (e) {
       error = e.toString();
     }
@@ -380,7 +395,7 @@ class Expression3D {
     if (_surfX == null || _surfY == null || _surfZ == null) {
       throw _parseError ?? '无效的参数曲面';
     }
-    return Point3D(_surfX!(u, v), _surfY!(u, v), _surfZ!(u, v));
+    return Point3D(_surfX(u, v), _surfY(u, v), _surfZ(u, v));
   }
 
   // ==================================================================
@@ -423,8 +438,8 @@ class Expression3D {
   /// Strip z = or f(x,y) = prefix from a surface expression.
   static String _stripSurfacePrefix(String expr) {
     // f(x,y) = ...
-    final fxyMatch =
-        RegExp(r'^f\s*\(\s*x\s*,\s*y\s*\)\s*=\s*').firstMatch(expr);
+    final fxyMatch = RegExp(r'^f\s*\(\s*x\s*,\s*y\s*\)\s*=\s*')
+        .firstMatch(expr);
     if (fxyMatch != null) {
       return expr.substring(fxyMatch.end);
     }
@@ -470,7 +485,7 @@ class Expression3D {
     return components;
   }
 
-  /// Normalize expression for function_tree.
+  /// Normalize an expression for numeric parsing.
   static String _normalizeExpression(String expr) {
     // Reuse normalization logic similar to MathExpression
     var result = expr.trim();
@@ -491,10 +506,11 @@ class Expression3D {
     String normalized,
     Map<String, double> parameterValues,
   ) {
-    final variableNames = _detectVariables(
-      normalized,
-      ['x', 'y', ...parameterValues.keys],
-    );
+    final variableNames = _detectVariables(normalized, [
+      'x',
+      'y',
+      ...parameterValues.keys,
+    ]);
     final mergedParams = Map<String, double>.from(parameterValues);
     for (final name in variableNames) {
       if (name != 'x' && name != 'y' && !mergedParams.containsKey(name)) {
@@ -502,12 +518,15 @@ class Expression3D {
       }
     }
 
-    final multiFunc = normalized.toMultiVariableFunction(variableNames);
+    final evaluate = MathExpressionParser.parse(
+      normalized,
+      variables: variableNames,
+    );
     return (double x, double y) {
       final args = Map<String, num>.from(mergedParams);
       args['x'] = x;
       args['y'] = y;
-      return multiFunc(args).toDouble();
+      return evaluate(args);
     };
   }
 
@@ -529,11 +548,11 @@ class Expression3D {
       }
     }
 
-    final multiFunc = normalized.toMultiVariableFunction(allVars);
+    final evaluate = MathExpressionParser.parse(normalized, variables: allVars);
     return (double t) {
       final args = Map<String, num>.from(mergedParams);
       args['t'] = t;
-      return multiFunc(args).toDouble();
+      return evaluate(args);
     };
   }
 
@@ -554,12 +573,12 @@ class Expression3D {
       }
     }
 
-    final multiFunc = normalized.toMultiVariableFunction(allVars);
+    final evaluate = MathExpressionParser.parse(normalized, variables: allVars);
     return (double u, double v) {
       final args = Map<String, num>.from(mergedParams);
       args['u'] = u;
       args['v'] = v;
-      return multiFunc(args).toDouble();
+      return evaluate(args);
     };
   }
 
@@ -573,7 +592,7 @@ class Expression3D {
       'log2e',
       'log10e',
       'sqrt1_2',
-      'sqrt2'
+      'sqrt2',
     };
     const knownFunctions = {
       'sin',
@@ -708,10 +727,7 @@ class Expression3D {
     result = result.replaceAll(RegExp(r'\\delta\b'), 'delta');
 
     // Strip any remaining backslash commands
-    result = result.replaceAllMapped(
-      RegExp(r'\\([a-zA-Z]+)'),
-      (m) => m[1]!,
-    );
+    result = result.replaceAllMapped(RegExp(r'\\([a-zA-Z]+)'), (m) => m[1]!);
 
     return result;
   }

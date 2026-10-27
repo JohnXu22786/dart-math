@@ -47,10 +47,10 @@ jobs:
           fi
           dart format --output=none --set-exit-if-changed "${dart_files[@]}"
       - name: Analyze package
-        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+        run: flutter analyze --fatal-warnings --fatal-infos
       - name: Analyze example
         working-directory: example
-        run: flutter analyze --no-fatal-warnings --no-fatal-infos
+        run: flutter analyze --fatal-warnings --fatal-infos
 
   example-web:
     name: Build standalone example for Web

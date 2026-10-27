@@ -25,8 +25,9 @@ const double _planeGridRange = 5.0;
 const double _pointMarkerRadius = 4.0;
 
 Color solidEdgeContrastColor(Color fillColor) {
-  final target =
-      fillColor.computeLuminance() < 0.5 ? Colors.white : Colors.black;
+  final target = fillColor.computeLuminance() < 0.5
+      ? Colors.white
+      : Colors.black;
   return Color.lerp(fillColor.withValues(alpha: 1), target, 0.45)!;
 }
 
@@ -45,10 +46,7 @@ double _perspectiveFarPlane(
     }
   }
 
-  for (final object in [
-    ...objects,
-    if (preview != null) preview,
-  ]) {
+  for (final object in [...objects, if (preview != null) preview]) {
     if (!includeHidden && !object.visible) continue;
     switch (object.type) {
       case Object3DType.point:
@@ -120,12 +118,14 @@ List<Point3D> _clipPolygonToDepthRange(
     final output = <Point3D>[];
     var previous = input.last;
     var previousDepth = worldToScreen(previous, camera, projection).z;
-    var previousInside =
-        keepGreater ? previousDepth >= boundary : previousDepth <= boundary;
+    var previousInside = keepGreater
+        ? previousDepth >= boundary
+        : previousDepth <= boundary;
     for (final current in input) {
       final currentDepth = worldToScreen(current, camera, projection).z;
-      final currentInside =
-          keepGreater ? currentDepth >= boundary : currentDepth <= boundary;
+      final currentInside = keepGreater
+          ? currentDepth >= boundary
+          : currentDepth <= boundary;
       if (currentInside != previousInside) {
         final fraction =
             (boundary - previousDepth) / (currentDepth - previousDepth);
@@ -144,14 +144,15 @@ List<Point3D> _clipPolygonToDepthRange(
 }
 
 ({Vector3D normal, double d, double normalSquared, Point3D origin})?
-    _normalizedPlaneEquation(Object3D plane) {
+_normalizedPlaneEquation(Object3D plane) {
   final a = plane.planeA;
   final b = plane.planeB;
   final c = plane.planeC;
   final d = plane.planeD;
   if (!a.isFinite || !b.isFinite || !c.isFinite || !d.isFinite) return null;
-  final scale =
-      dart_math.max(a.abs(), dart_math.max(b.abs(), c.abs())).toDouble();
+  final scale = dart_math
+      .max(a.abs(), dart_math.max(b.abs(), c.abs()))
+      .toDouble();
   if (scale == 0 || !scale.isFinite) return null;
   final normal = Vector3D(a / scale, b / scale, c / scale);
   final normalizedD = d / scale;
@@ -247,8 +248,8 @@ class _SolidSourceDependency {
     required List<int?> sourcePointIndices,
     required this.workingPlaneNormal,
     required this.polygonSides,
-  })  : points = List.of(points),
-        sourcePointIndices = List.of(sourcePointIndices);
+  }) : points = List.of(points),
+       sourcePointIndices = List.of(sourcePointIndices);
 }
 
 enum _ViewAction {
@@ -392,7 +393,7 @@ class MathCanvas3DState extends State<MathCanvas3D> {
   // Gesture state
   Offset? _lastFocalPoint;
   double?
-      _initialScaleDistance; // camera distance at gesture start (for stable zoom)
+  _initialScaleDistance; // camera distance at gesture start (for stable zoom)
   final FocusNode _focusNode = FocusNode(debugLabel: 'MathCanvas3D');
   int? _mousePointer;
   Offset? _lastMousePosition;
@@ -410,11 +411,11 @@ class MathCanvas3DState extends State<MathCanvas3D> {
 
   /// Get the current camera state.
   Camera3D get camera => Camera3D(
-        target: _cameraTarget,
-        distance: _cameraDistance,
-        theta: _cameraTheta,
-        phi: _cameraPhi,
-      );
+    target: _cameraTarget,
+    distance: _cameraDistance,
+    theta: _cameraTheta,
+    phi: _cameraPhi,
+  );
 
   /// Get the current projection type.
   ProjectionType get projectionType => _projectionType;
@@ -640,15 +641,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
         final centerUp = (minUp + maxUp) / 2;
         target = target + right * centerRight + up * centerUp;
         if (_projectionType == ProjectionType.parallel) {
-          final requiredScale = dart_math.max(
-            halfHeight,
-            halfWidth / aspect,
-          );
+          final requiredScale = dart_math.max(halfHeight, halfWidth / aspect);
           cameraDistance = dart_math
-              .max(
-                4.0,
-                requiredScale * 1.1 / _orthographicDistanceScale,
-              )
+              .max(4.0, requiredScale * 1.1 / _orthographicDistanceScale)
               .toDouble();
         } else {
           const fitMargin = 0.9;
@@ -676,10 +671,7 @@ class MathCanvas3DState extends State<MathCanvas3D> {
                 )
                 .toDouble();
             requiredDistance = dart_math
-                .max(
-                  requiredDistance,
-                  0.1 - forwardOffset,
-                )
+                .max(requiredDistance, 0.1 - forwardOffset)
                 .toDouble();
           }
           cameraDistance = requiredDistance;
@@ -695,7 +687,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
 
   /// Set the objects to render.
   void setObjects(List<Object3D> objects) {
-    final preservesExistingObjects = objects.length >= _objects.length &&
+    final preservesExistingObjects =
+        objects.length >= _objects.length &&
         List.generate(
           _objects.length,
           (index) => index,
@@ -913,7 +906,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       if (!object.visible ||
           object.type != Object3DType.point ||
           object.opacity <= 0 ||
-          ((object.color >> 24) & 0xFF) == 0) continue;
+          ((object.color >> 24) & 0xFF) == 0)
+        continue;
       final screen = worldToScreen(object.point, camera, projection);
       if (!screen.x.isFinite || !screen.y.isFinite || !screen.z.isFinite) {
         continue;
@@ -927,7 +921,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
           (object.point - camera.position).dot(
                 (_cameraTarget - camera.position).normalized(),
               ) <=
-              0) continue;
+              0)
+        continue;
       final gap = _pointSelectionDistance(
         object,
         position,
@@ -1062,14 +1057,15 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       var fraction = screenLengthSquared < 1e-9
           ? 0.0
           : (((point - screenStart).dx * screenDirection.dx +
-                      (point - screenStart).dy * screenDirection.dy) /
-                  screenLengthSquared)
-              .clamp(0.0, 1.0)
-              .toDouble();
+                        (point - screenStart).dy * screenDirection.dy) /
+                    screenLengthSquared)
+                .clamp(0.0, 1.0)
+                .toDouble();
       if (projection.type == ProjectionType.perspective &&
           startDepth > 0 &&
           endDepth > 0) {
-        fraction = fraction *
+        fraction =
+            fraction *
             startDepth /
             ((1 - fraction) * endDepth + fraction * startDepth);
       }
@@ -1114,10 +1110,11 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       };
       switch (object.type) {
         case Object3DType.point:
-          distance = _isPointOccludedByOpaqueSurface(
-            object.point,
-            screenPosition: object.isTextAnnotation ? position : null,
-          )
+          distance =
+              _isPointOccludedByOpaqueSurface(
+                object.point,
+                screenPosition: object.isTextAnnotation ? position : null,
+              )
               ? double.infinity
               : _pointSelectionDistance(object, position, screen(object.point));
         case Object3DType.line:
@@ -1199,14 +1196,15 @@ class MathCanvas3DState extends State<MathCanvas3D> {
             var fraction = screenLengthSquared < 1e-9
                 ? 0.0
                 : ((screenOffset.dx * screenDirection.dx +
-                            screenOffset.dy * screenDirection.dy) /
-                        screenLengthSquared)
-                    .clamp(0.0, 1.0)
-                    .toDouble();
+                              screenOffset.dy * screenDirection.dy) /
+                          screenLengthSquared)
+                      .clamp(0.0, 1.0)
+                      .toDouble();
             if (projection.type == ProjectionType.perspective &&
                 startProjection.z > 0 &&
                 endProjection.z > 0) {
-              fraction = fraction *
+              fraction =
+                  fraction *
                   startProjection.z /
                   ((1 - fraction) * endProjection.z +
                       fraction * startProjection.z);
@@ -1270,8 +1268,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
                   final candidateDepth = depthAt(hit);
                   if (isVisibleDepth(object, candidateDepth)) {
                     distance = 0;
-                    hitDepth =
-                        dart_math.min(hitDepth, candidateDepth).toDouble();
+                    hitDepth = dart_math
+                        .min(hitDepth, candidateDepth)
+                        .toDouble();
                   }
                 }
                 continue;
@@ -1329,8 +1328,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
             hitDepth = depthAt(_pointOnSphereAtScreen(object, position));
             distance = centerDistance <= projectedRadius + 12
                 ? dart_math
-                    .max(0.0, centerDistance - projectedRadius)
-                    .toDouble()
+                      .max(0.0, centerDistance - projectedRadius)
+                      .toDouble()
                 : double.infinity;
           }
         case Object3DType.plane:
@@ -1350,12 +1349,14 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       }
       final overlapsNearest =
           (distance - nearestDistance).abs() <= _hitScreenDistanceTieTolerance;
-      final pointWinsMarkerOverlap = nearestIndex >= 0 &&
+      final pointWinsMarkerOverlap =
+          nearestIndex >= 0 &&
           object.type == Object3DType.point &&
           _objects[nearestIndex].type != Object3DType.point &&
           distance <= _pointMarkerRadius &&
           (hitDepth - nearestDepth).abs() <= _hitDepthTieTolerance;
-      final nearestPointWinsMarkerOverlap = nearestIndex >= 0 &&
+      final nearestPointWinsMarkerOverlap =
+          nearestIndex >= 0 &&
           _objects[nearestIndex].type == Object3DType.point &&
           object.type != Object3DType.point &&
           nearestDistance <= _pointMarkerRadius &&
@@ -1493,15 +1494,17 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     if (object.type == Object3DType.plane) {
       final equation = _normalizedPlaneEquation(object);
       if (equation != null) {
-        final signedOffset = (point - equation.origin).dot(equation.normal) /
+        final signedOffset =
+            (point - equation.origin).dot(equation.normal) /
             equation.normalSquared;
         return point + equation.normal * -signedOffset;
       }
     }
     if (object.type == Object3DType.line ||
         object.type == Object3DType.vector) {
-      final a =
-          object.type == Object3DType.vector ? object.point : object.pointA;
+      final a = object.type == Object3DType.vector
+          ? object.point
+          : object.pointA;
       final b = object.type == Object3DType.vector
           ? object.point + object.vector
           : object.pointB;
@@ -1531,7 +1534,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
             ic < 0 ||
             ia >= object.vertices.length ||
             ib >= object.vertices.length ||
-            ic >= object.vertices.length) continue;
+            ic >= object.vertices.length)
+          continue;
         final candidate = _closestPointOnTriangle(
           point,
           object.vertices[ia],
@@ -1609,8 +1613,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
   }
 
   Point3D _pointOnLineAtScreen(Object3D object, Offset position) {
-    final start =
-        object.type == Object3DType.vector ? object.point : object.pointA;
+    final start = object.type == Object3DType.vector
+        ? object.point
+        : object.pointA;
     final direction = object.type == Object3DType.vector
         ? object.vector
         : object.pointB - object.pointA;
@@ -1627,9 +1632,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
         rayLengthSquared * lengthSquared - directionDot * directionDot;
     var parameter =
         denominator.abs() <= rayLengthSquared * lengthSquared * 1e-12
-            ? lineOffset / lengthSquared
-            : (rayLengthSquared * lineOffset - directionDot * rayOffset) /
-                denominator;
+        ? lineOffset / lengthSquared
+        : (rayLengthSquared * lineOffset - directionDot * rayOffset) /
+              denominator;
 
     double clampToLine(double value) {
       if (object.type == Object3DType.vector ||
@@ -1689,15 +1694,16 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       final fraction = screenLengthSquared < 1e-12
           ? 0.0
           : ((screenOffset.dx * screenDirection.dx +
-                      screenOffset.dy * screenDirection.dy) /
-                  screenLengthSquared)
-              .clamp(0.0, 1.0)
-              .toDouble();
+                        screenOffset.dy * screenDirection.dy) /
+                    screenLengthSquared)
+                .clamp(0.0, 1.0)
+                .toDouble();
       var worldFraction = fraction;
       if (projection.type == ProjectionType.perspective &&
           startScreen.z > 0 &&
           endScreen.z > 0) {
-        worldFraction = fraction *
+        worldFraction =
+            fraction *
             startScreen.z /
             ((1 - fraction) * endScreen.z + fraction * startScreen.z);
       }
@@ -1733,8 +1739,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     final direction = b - a;
     final lengthSquared = direction.dot(direction);
     if (lengthSquared < 1e-12) return a;
-    final t =
-        ((point - a).dot(direction) / lengthSquared).clamp(0.0, 1.0).toDouble();
+    final t = ((point - a).dot(direction) / lengthSquared)
+        .clamp(0.0, 1.0)
+        .toDouble();
     return a + direction * t;
   }
 
@@ -1758,8 +1765,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       return candidates.reduce(
         (nearest, candidate) =>
             point.distanceTo(candidate) < point.distanceTo(nearest)
-                ? candidate
-                : nearest,
+            ? candidate
+            : nearest,
       );
     }
     final ap = point - a;
@@ -1803,9 +1810,11 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     final tool = _currentTool;
     final index = _hitObjectIndex(
       position,
-      includeHidden: tool == ConstructionTool.showHideObject ||
+      includeHidden:
+          tool == ConstructionTool.showHideObject ||
           tool == ConstructionTool.deleteObject,
-      includeTransparent: tool == ConstructionTool.showHideObject ||
+      includeTransparent:
+          tool == ConstructionTool.showHideObject ||
           tool == ConstructionTool.deleteObject,
     );
     if (index == null) return;
@@ -1965,8 +1974,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
           tangent
               ? '再点击圆或圆锥曲线'
               : canSelectLine
-                  ? '再点击圆锥曲线生成共轭径线'
-                  : '再点击圆锥曲线生成极线',
+              ? '再点击圆锥曲线生成共轭径线'
+              : '再点击圆锥曲线生成极线',
         );
       }
       return;
@@ -1998,8 +2007,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       final message = tangent
           ? '请选取圆或圆锥曲线上的点'
           : source.type == Object3DType.line
-              ? '请选择位于圆锥曲线平面内的直线和具有中心的圆锥曲线'
-              : '请选择曲线平面内能确定有限极线的点';
+          ? '请选择位于圆锥曲线平面内的直线和具有中心的圆锥曲线'
+          : '请选择曲线平面内能确定有限极线的点';
       ScaffoldMessenger.maybeOf(context)
           ?.showSnackBar(SnackBar(content: Text(message)));
     } else {
@@ -2027,17 +2036,18 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     Point3D point, {
     required double minimum,
   }) {
-    final coordinateScale = [
-      conic.origin.x.abs(),
-      conic.origin.y.abs(),
-      conic.origin.z.abs(),
-      point.x.abs(),
-      point.y.abs(),
-      point.z.abs(),
-    ].fold<double>(
-      1,
-      (scale, coordinate) => dart_math.max(scale, coordinate).toDouble(),
-    );
+    final coordinateScale =
+        [
+          conic.origin.x.abs(),
+          conic.origin.y.abs(),
+          conic.origin.z.abs(),
+          point.x.abs(),
+          point.y.abs(),
+          point.z.abs(),
+        ].fold<double>(
+          1,
+          (scale, coordinate) => dart_math.max(scale, coordinate).toDouble(),
+        );
     return dart_math
         .max(minimum, coordinateScale * 1.7763568394002505e-15)
         .toDouble();
@@ -2049,7 +2059,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     var x = coordinates.x;
     var y = coordinates.y;
     for (var i = 0; i < 12; i++) {
-      final value = conic.quadraticX * x * x +
+      final value =
+          conic.quadraticX * x * x +
           conic.quadraticXY * x * y +
           conic.quadraticY * y * y +
           conic.linearX * x +
@@ -2060,10 +2071,12 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       final gradientY =
           conic.quadraticXY * x + 2 * conic.quadraticY * y + conic.linearY;
       final gradientSquared = gradientX * gradientX + gradientY * gradientY;
-      final gradientScaleX = (2 * conic.quadraticX * x).abs() +
+      final gradientScaleX =
+          (2 * conic.quadraticX * x).abs() +
           (conic.quadraticXY * y).abs() +
           conic.linearX.abs();
-      final gradientScaleY = (conic.quadraticXY * x).abs() +
+      final gradientScaleY =
+          (conic.quadraticXY * x).abs() +
           (2 * conic.quadraticY * y).abs() +
           conic.linearY.abs();
       final gradientScale = dart_math.sqrt(
@@ -2115,10 +2128,7 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     return value.abs() <= scale * 1e-6;
   }
 
-  ({double x, double y})? _conicCoordinates(
-    Conic3D conic,
-    Vector3D offset,
-  ) {
+  ({double x, double y})? _conicCoordinates(Conic3D conic, Vector3D offset) {
     final normal = conic.axisU.cross(conic.axisV);
     final normalSquared = normal.dot(normal);
     if (!normalSquared.isFinite || normalSquared == 0) return null;
@@ -2142,21 +2152,22 @@ class MathCanvas3DState extends State<MathCanvas3D> {
           .clamp(0.0, segmentLength)
           .toDouble();
       final closest = start + unitDirection * along;
-      final coordinateScale = <double>[
-        point.x.abs(),
-        point.y.abs(),
-        point.z.abs(),
-        start.x.abs(),
-        start.y.abs(),
-        start.z.abs(),
-        end.x.abs(),
-        end.y.abs(),
-        end.z.abs(),
-        1.0,
-      ].fold<double>(
-        1,
-        (scale, coordinate) => dart_math.max(scale, coordinate).toDouble(),
-      );
+      final coordinateScale =
+          <double>[
+            point.x.abs(),
+            point.y.abs(),
+            point.z.abs(),
+            start.x.abs(),
+            start.y.abs(),
+            start.z.abs(),
+            end.x.abs(),
+            end.y.abs(),
+            end.z.abs(),
+            1.0,
+          ].fold<double>(
+            1,
+            (scale, coordinate) => dart_math.max(scale, coordinate).toDouble(),
+          );
       if (point.distanceTo(closest) <=
           segmentLength * 0.02 + coordinateScale * 1e-15) {
         return true;
@@ -2218,8 +2229,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     if (directionCoordinates == null) return null;
     final directionX = directionCoordinates.x;
     final directionY = directionCoordinates.y;
-    final directionScale =
-        dart_math.max(directionX.abs(), directionY.abs()).toDouble();
+    final directionScale = dart_math
+        .max(directionX.abs(), directionY.abs())
+        .toDouble();
     if (!directionScale.isFinite || directionScale == 0) return null;
     final dx = directionX / directionScale;
     final dy = directionY / directionScale;
@@ -2301,7 +2313,7 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       if (!denominator.isFinite || denominator == 0) return null;
       final pointVector =
           (n2.cross(direction) * d1 + direction.cross(n1) * d2) *
-              (1 / denominator);
+          (1 / denominator);
       final point = Point3D(pointVector.x, pointVector.y, pointVector.z);
       final lineDirection = direction.normalized();
       if (!point.x.isFinite ||
@@ -2340,9 +2352,11 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       Object3D object,
     ) {
       if (object.type != Object3DType.line &&
-          object.type != Object3DType.vector) return null;
-      final origin =
-          object.type == Object3DType.vector ? object.point : object.pointA;
+          object.type != Object3DType.vector)
+        return null;
+      final origin = object.type == Object3DType.vector
+          ? object.point
+          : object.pointA;
       final direction = object.type == Object3DType.vector
           ? object.vector
           : object.pointB - object.pointA;
@@ -2366,17 +2380,18 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       Point3D second,
       double geometryScale,
     ) {
-      final coordinateScale = [
-        first.x.abs(),
-        first.y.abs(),
-        first.z.abs(),
-        second.x.abs(),
-        second.y.abs(),
-        second.z.abs(),
-      ].fold<double>(
-        0,
-        (scale, coordinate) => dart_math.max(scale, coordinate).toDouble(),
-      );
+      final coordinateScale =
+          [
+            first.x.abs(),
+            first.y.abs(),
+            first.z.abs(),
+            second.x.abs(),
+            second.y.abs(),
+            second.z.abs(),
+          ].fold<double>(
+            0,
+            (scale, coordinate) => dart_math.max(scale, coordinate).toDouble(),
+          );
       return dart_math
           .max(geometryScale * 1e-12, coordinateScale * 1.7763568394002505e-15)
           .toDouble();
@@ -2398,8 +2413,11 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       final directionMagnitude = line.direction.magnitude;
       if (!directionMagnitude.isFinite || directionMagnitude == 0) return false;
       final point = line.origin + line.direction * t;
-      if (![point.x, point.y, point.z]
-          .every((coordinate) => coordinate.isFinite)) {
+      if (![
+        point.x,
+        point.y,
+        point.z,
+      ].every((coordinate) => coordinate.isFinite)) {
         return false;
       }
       if (t < line.minT) {
@@ -2437,7 +2455,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
               (point - line.origin).dot(line.direction) / directionSquared;
           if (!inRange(line, t)) return false;
           final closest = line.origin + line.direction * t;
-          final featureScale = object.type == Object3DType.vector ||
+          final featureScale =
+              object.type == Object3DType.vector ||
                   object.lineKind == Line3DKind.segment
               ? line.direction.magnitude
               : 1.0;
@@ -2448,7 +2467,7 @@ class MathCanvas3DState extends State<MathCanvas3D> {
           if (equation == null) return false;
           final distance =
               (point - equation.origin).dot(equation.normal).abs() /
-                  dart_math.sqrt(equation.normalSquared);
+              dart_math.sqrt(equation.normalSquared);
           return distance <= intersectionTolerance(point, equation.origin, 1.0);
         case Object3DType.sphere:
           final radius = object.sphereRadius.abs();
@@ -2518,22 +2537,15 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     }
 
     List<Point3D> collinearLineIntersectionPoints(
-      ({
-        Point3D origin,
-        Vector3D direction,
-        double minT,
-        double maxT
-      }) firstLine,
-      ({
-        Point3D origin,
-        Vector3D direction,
-        double minT,
-        double maxT
-      }) secondLine,
+      ({Point3D origin, Vector3D direction, double minT, double maxT})
+      firstLine,
+      ({Point3D origin, Vector3D direction, double minT, double maxT})
+      secondLine,
     ) {
       final firstLengthSquared = firstLine.direction.dot(firstLine.direction);
-      final secondLengthSquared =
-          secondLine.direction.dot(secondLine.direction);
+      final secondLengthSquared = secondLine.direction.dot(
+        secondLine.direction,
+      );
       if (!firstLengthSquared.isFinite ||
           !secondLengthSquared.isFinite ||
           firstLengthSquared == 0 ||
@@ -2544,7 +2556,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
           .max(finiteLineScale(firstLine), finiteLineScale(secondLine))
           .toDouble();
       final secondOriginOffset = secondLine.origin - firstLine.origin;
-      final secondOriginOnFirst = firstLine.origin +
+      final secondOriginOnFirst =
+          firstLine.origin +
           firstLine.direction *
               (secondOriginOffset.dot(firstLine.direction) /
                   firstLengthSquared);
@@ -2573,24 +2586,18 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       final mappedStart = secondLine.minT.isFinite
           ? mapSecondParameter(secondLine.minT)
           : secondParameterScale > 0
-              ? double.negativeInfinity
-              : double.infinity;
+          ? double.negativeInfinity
+          : double.infinity;
       final mappedEnd = secondLine.maxT.isFinite
           ? mapSecondParameter(secondLine.maxT)
           : secondParameterScale > 0
-              ? double.infinity
-              : double.negativeInfinity;
+          ? double.infinity
+          : double.negativeInfinity;
       final overlapStart = dart_math
-          .max(
-            firstLine.minT,
-            dart_math.min(mappedStart, mappedEnd),
-          )
+          .max(firstLine.minT, dart_math.min(mappedStart, mappedEnd))
           .toDouble();
       final overlapEnd = dart_math
-          .min(
-            firstLine.maxT,
-            dart_math.max(mappedStart, mappedEnd),
-          )
+          .min(firstLine.maxT, dart_math.max(mappedStart, mappedEnd))
           .toDouble();
       if (!overlapStart.isFinite || !overlapEnd.isFinite) return const [];
 
@@ -2727,7 +2734,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
         0,
         (sum, term) => sum + term.abs(),
       );
-      final constant = conic.quadraticX * x * x +
+      final constant =
+          conic.quadraticX * x * x +
           conic.quadraticXY * x * y +
           conic.quadraticY * y * y +
           conic.linearX * x +
@@ -2745,8 +2753,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
         final discriminantTolerance =
             (linear * linear + (4 * quadratic * constant).abs()) * 1e-12;
         if (discriminant < -discriminantTolerance) return const [];
-        final adjustedDiscriminant =
-            discriminant.abs() <= discriminantTolerance ? 0.0 : discriminant;
+        final adjustedDiscriminant = discriminant.abs() <= discriminantTolerance
+            ? 0.0
+            : discriminant;
         final root = dart_math.sqrt(dart_math.max(0, adjustedDiscriminant));
         if (root == 0) {
           parameters.add(-linear / (2 * quadratic));
@@ -2868,7 +2877,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
         if (centerOffset.dot(firstCircle.normal).abs() > tolerance) {
           return const [];
         }
-        final inPlaneOffset = centerOffset -
+        final inPlaneOffset =
+            centerOffset -
             firstCircle.normal * centerOffset.dot(firstCircle.normal);
         final distance = inPlaneOffset.magnitude;
         if (distance <= tolerance ||
@@ -2878,7 +2888,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
           return const [];
         }
         final axis = inPlaneOffset * (1 / distance);
-        final along = (firstCircle.radius * firstCircle.radius -
+        final along =
+            (firstCircle.radius * firstCircle.radius -
                 secondCircle.radius * secondCircle.radius +
                 distance * distance) /
             (2 * distance);
@@ -2913,17 +2924,19 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       );
       final lineOriginVector =
           (secondCircle.normal.cross(normalCross) * firstPlaneOffset +
-                  normalCross.cross(firstCircle.normal) * secondPlaneOffset) *
-              (1 / denominator);
+              normalCross.cross(firstCircle.normal) * secondPlaneOffset) *
+          (1 / denominator);
       final lineOrigin = Point3D(
         lineOriginVector.x,
         lineOriginVector.y,
         lineOriginVector.z,
       );
-      final closestToCenter = lineOrigin +
+      final closestToCenter =
+          lineOrigin +
           lineDirection * (firstCircle.center - lineOrigin).dot(lineDirection);
       final centerDistance = closestToCenter.distanceTo(firstCircle.center);
-      var heightSquared = firstCircle.radius * firstCircle.radius -
+      var heightSquared =
+          firstCircle.radius * firstCircle.radius -
           centerDistance * centerDistance;
       final squaredTolerance =
           tolerance * dart_math.max(firstCircle.radius, tolerance) * 2;
@@ -3051,16 +3064,10 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       if (startDeviation > tolerance || endDeviation > tolerance) return null;
 
       final overlapStart = dart_math
-          .max(
-            0,
-            dart_math.min(startProjection, endProjection),
-          )
+          .max(0, dart_math.min(startProjection, endProjection))
           .toDouble();
       final overlapEnd = dart_math
-          .min(
-            firstLength,
-            dart_math.max(startProjection, endProjection),
-          )
+          .min(firstLength, dart_math.max(startProjection, endProjection))
           .toDouble();
       if (overlapEnd - overlapStart <= tolerance) return null;
       return (
@@ -3164,10 +3171,12 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     }
 
     if (first.type == Object3DType.curve || second.type == Object3DType.curve) {
-      final firstSegments =
-          first.type == Object3DType.curve ? curveSegments(first) : [first];
-      final secondSegments =
-          second.type == Object3DType.curve ? curveSegments(second) : [second];
+      final firstSegments = first.type == Object3DType.curve
+          ? curveSegments(first)
+          : [first];
+      final secondSegments = second.type == Object3DType.curve
+          ? curveSegments(second)
+          : [second];
       final intersections = <({Point3D point, double scale})>[];
       final coincidentOverlaps =
           <({Point3D start, Point3D end, double tolerance})>[];
@@ -3175,8 +3184,10 @@ class MathCanvas3DState extends State<MathCanvas3D> {
         for (final secondSegment in secondSegments) {
           if (first.type == Object3DType.curve &&
               second.type == Object3DType.curve) {
-            final overlap =
-                coincidentSegmentOverlap(firstSegment, secondSegment);
+            final overlap = coincidentSegmentOverlap(
+              firstSegment,
+              secondSegment,
+            );
             if (overlap != null) coincidentOverlaps.add(overlap);
           }
           final scale = dart_math
@@ -3273,7 +3284,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     final normal = equation.normal;
     final normalSquared = equation.normalSquared;
     final center = sphere.sphereCenter;
-    final signedDistance = (normal.dot(center.toVector()) - equation.d) /
+    final signedDistance =
+        (normal.dot(center.toVector()) - equation.d) /
         dart_math.sqrt(normalSquared);
     final radius = sphere.sphereRadius.abs();
     final coordinateScale = dart_math.max(
@@ -3289,7 +3301,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       coordinateScale * 1.7763568394002505e-15,
     );
     if (signedDistance.abs() > radius + tolerance) return null;
-    final circleCenter = center +
+    final circleCenter =
+        center +
         normal * ((equation.d - normal.dot(center.toVector())) / normalSquared);
     var radiusSquared = radius * radius - signedDistance * signedDistance;
     final radiusSquaredTolerance =
@@ -3332,7 +3345,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       return null;
     }
     final axis = delta * (1 / distance);
-    final along = (firstRadius * firstRadius -
+    final along =
+        (firstRadius * firstRadius -
             secondRadius * secondRadius +
             distance * distance) /
         (2 * distance);
@@ -3707,7 +3721,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       if (edgeLength < 1e-9) continue;
       final distanceAC = a.distanceTo(c);
       final distanceBC = b.distanceTo(c);
-      final along = (distanceAC * distanceAC -
+      final along =
+          (distanceAC * distanceAC -
               distanceBC * distanceBC +
               edgeLength * edgeLength) /
           (2 * edgeLength);
@@ -3756,7 +3771,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
             final sharedPointB3D = object.vertices[sharedB];
             final distanceA = thirdPoint3D.distanceTo(sharedPointA3D);
             final distanceB = thirdPoint3D.distanceTo(sharedPointB3D);
-            final childAlong = (distanceA * distanceA -
+            final childAlong =
+                (distanceA * distanceA -
                     distanceB * distanceB +
                     flatEdgeLength * flatEdgeLength) /
                 (2 * flatEdgeLength);
@@ -3764,9 +3780,11 @@ class MathCanvas3DState extends State<MathCanvas3D> {
               dart_math.max(0, distanceA * distanceA - childAlong * childAlong),
             );
             final parentThird = parentPoints[parentThirdIndex];
-            final parentSide = edgeVector.dx * (parentThird.dy - pointA.dy) -
+            final parentSide =
+                edgeVector.dx * (parentThird.dy - pointA.dy) -
                 edgeVector.dy * (parentThird.dx - pointA.dx);
-            final outward = Offset(-direction.dy, direction.dx) *
+            final outward =
+                Offset(-direction.dy, direction.dx) *
                 (parentSide >= 0 ? -1 : 1);
             final childPoints = List<Offset>.filled(3, Offset.zero);
             childPoints[childAIndex] = pointA;
@@ -3893,8 +3911,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     _mouseGesture = secondary
         ? _NavigationGesture.orbit
         : (_currentTool == ConstructionTool.panView || _panModifierPressed
-            ? _NavigationGesture.pan
-            : _NavigationGesture.orbit);
+              ? _NavigationGesture.pan
+              : _NavigationGesture.orbit);
   }
 
   void _onPointerMove(PointerMoveEvent event) {
@@ -3959,7 +3977,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
           // A horizontal plane is edge-on in front/side views.
           final view = camera.viewMatrix();
           final right = Vector3D(view[0], view[4], 0).normalized();
-          position = start +
+          position =
+              start +
               right * (delta.dx * _computeScaleForCanvas() * 2 / _canvasHeight);
         }
       }
@@ -4045,8 +4064,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
   void _zoomBy(double factor, {Offset? focalPoint}) {
     if (!factor.isFinite || factor <= 0) return;
     final oldDistance = _cameraDistance;
-    final newDistance =
-        (oldDistance / factor).clamp(0.25, double.maxFinite).toDouble();
+    final newDistance = (oldDistance / factor)
+        .clamp(0.25, double.maxFinite)
+        .toDouble();
     if ((newDistance - oldDistance).abs() < 1e-10) return;
 
     var newTarget = _cameraTarget;
@@ -4144,10 +4164,12 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     // ===== Standard orbit/pan/zoom (Move tool or no construction active)
     if (details.pointerCount == 1) {
       // Single finger: orbit
-      final dx =
-          _lastFocalPoint == null ? 0.0 : (focalPoint.dx - _lastFocalPoint!.dx);
-      final dy =
-          _lastFocalPoint == null ? 0.0 : (focalPoint.dy - _lastFocalPoint!.dy);
+      final dx = _lastFocalPoint == null
+          ? 0.0
+          : (focalPoint.dx - _lastFocalPoint!.dx);
+      final dy = _lastFocalPoint == null
+          ? 0.0
+          : (focalPoint.dy - _lastFocalPoint!.dy);
 
       if (_currentTool == ConstructionTool.panView) {
         _panBy(Offset(dx, dy));
@@ -4156,11 +4178,13 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       }
     } else if (details.pointerCount >= 2) {
       // GeoGebra combines two-finger translation and pinch in one gesture.
-      final delta =
-          _lastFocalPoint == null ? Offset.zero : focalPoint - _lastFocalPoint!;
+      final delta = _lastFocalPoint == null
+          ? Offset.zero
+          : focalPoint - _lastFocalPoint!;
       final startDistance = _initialScaleDistance ?? _cameraDistance;
-      final newDistance =
-          (startDistance / scale).clamp(0.25, double.maxFinite).toDouble();
+      final newDistance = (startDistance / scale)
+          .clamp(0.25, double.maxFinite)
+          .toDouble();
       final panned = Camera3D(
         target: _cameraTarget,
         distance: newDistance,
@@ -4326,13 +4350,12 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     Ray3D ray, {
     required Point3D point,
     required Vector3D normal,
-  }) =>
-      intersectRayPlane(
-        ray,
-        point: point,
-        normal: normal,
-        allowBehind: _projectionType == ProjectionType.parallel,
-      );
+  }) => intersectRayPlane(
+    ray,
+    point: point,
+    normal: normal,
+    allowBehind: _projectionType == ProjectionType.parallel,
+  );
 
   Projection3D _currentProjection({bool includeHidden = false}) {
     return _projectionType == ProjectionType.parallel
@@ -4386,12 +4409,13 @@ class MathCanvas3DState extends State<MathCanvas3D> {
       final t = lengthSquared < 1e-9
           ? 0.0
           : ((screenX - aScreen.x) * dx + (screenY - aScreen.y) * dy) /
-              lengthSquared;
+                lengthSquared;
       var clampedT = t.clamp(0.0, 1.0).toDouble();
       if (projection.type == ProjectionType.perspective &&
           aScreen.z > 0 &&
           bScreen.z > 0) {
-        clampedT = clampedT *
+        clampedT =
+            clampedT *
             aScreen.z /
             ((1 - clampedT) * bScreen.z + clampedT * aScreen.z);
       }
@@ -4511,7 +4535,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
 
     final ray = _screenRay(screenX, screenY);
     final points = _construction?.points ?? const <Point3D>[];
-    final normal = normalOverride ??
+    final normal =
+        normalOverride ??
         (points.isEmpty ? Vector3D.unitZ : _constructionPlaneNormal);
     final planePoint = points.isEmpty ? Point3D.origin : points.last;
     final hit = _intersectWorkingPlane(ray, point: planePoint, normal: normal);
@@ -4557,8 +4582,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
 
     final pixelsPerWorldUnit =
         _canvasHeight / (_cameraDistance * _orthographicDistanceScale * 2);
-    _constHeight = -((focalPoint.dy - (_constStartPoint?.dy ?? focalPoint.dy)) /
-        pixelsPerWorldUnit);
+    _constHeight =
+        -((focalPoint.dy - (_constStartPoint?.dy ?? focalPoint.dy)) /
+            pixelsPerWorldUnit);
     final base = _constGroundPos ?? Point3D.origin;
     return Point3D(base.x, base.y, base.z + _constHeight);
   }
@@ -4636,8 +4662,9 @@ class MathCanvas3DState extends State<MathCanvas3D> {
     int? pointOnObjectTargetIndex;
     if (_currentTool == ConstructionTool.pointOnObject) {
       final selectionPosition = _constStartPoint;
-      final targetIndex =
-          selectionPosition == null ? null : _hitObjectIndex(selectionPosition);
+      final targetIndex = selectionPosition == null
+          ? null
+          : _hitObjectIndex(selectionPosition);
       if (targetIndex == null) {
         widget.onToolInstruction?.call('请点击现有对象上的位置');
         return;
@@ -4713,7 +4740,7 @@ class MathCanvas3DState extends State<MathCanvas3D> {
                 _selectedPointIndex = index;
                 _pointDragMode = PointDragMode.height;
                 if (pointOnObjectTargetIndex != null) {
-                  _pointAttachments[index] = pointOnObjectTargetIndex!;
+                  _pointAttachments[index] = pointOnObjectTargetIndex;
                 }
               });
             }
@@ -4852,87 +4879,87 @@ class MathCanvas3DState extends State<MathCanvas3D> {
   }
 
   List<PopupMenuEntry<_ViewAction>> _viewMenuItems() => [
-        _menuToggle(
-          value: _ViewAction.toggleAxes,
-          icon: Icons.straighten,
-          label: '坐标轴',
-          selected: _showAxes,
-        ),
-        _menuToggle(
-          value: _ViewAction.togglePlane,
-          icon: Icons.crop_square,
-          label: 'xOy 平面',
-          selected: _showPlane,
-        ),
-        _menuToggle(
-          value: _ViewAction.toggleGrid,
-          icon: Icons.grid_on,
-          label: '网格',
-          selected: _showGrid,
-        ),
-        const PopupMenuDivider(),
-        PopupMenuItem(
-          value: _ViewAction.parallelProjection,
-          child: Row(
-            children: [
-              const Icon(Icons.view_in_ar, size: 20),
-              const SizedBox(width: 12),
-              const Expanded(child: Text('平行投影')),
-              if (_projectionType == ProjectionType.parallel)
-                const Icon(Icons.check, size: 18),
-            ],
-          ),
-        ),
-        PopupMenuItem(
-          value: _ViewAction.perspectiveProjection,
-          child: Row(
-            children: [
-              const Icon(Icons.vrpano, size: 20),
-              const SizedBox(width: 12),
-              const Expanded(child: Text('透视投影')),
-              if (_projectionType == ProjectionType.perspective)
-                const Icon(Icons.check, size: 18),
-            ],
-          ),
-        ),
-        const PopupMenuDivider(),
-        const PopupMenuItem(
-          value: _ViewAction.standardView,
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.home_outlined, size: 20),
-            title: Text('标准视图'),
-          ),
-        ),
-        const PopupMenuItem(
-          value: _ViewAction.topView,
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.vertical_align_bottom, size: 20),
-            title: Text('俯视 xOy'),
-          ),
-        ),
-        const PopupMenuItem(
-          value: _ViewAction.frontView,
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.crop_landscape, size: 20),
-            title: Text('正视 xOz'),
-          ),
-        ),
-        const PopupMenuItem(
-          value: _ViewAction.sideView,
-          child: ListTile(
-            dense: true,
-            contentPadding: EdgeInsets.zero,
-            leading: Icon(Icons.crop_portrait, size: 20),
-            title: Text('侧视 yOz'),
-          ),
-        ),
-      ];
+    _menuToggle(
+      value: _ViewAction.toggleAxes,
+      icon: Icons.straighten,
+      label: '坐标轴',
+      selected: _showAxes,
+    ),
+    _menuToggle(
+      value: _ViewAction.togglePlane,
+      icon: Icons.crop_square,
+      label: 'xOy 平面',
+      selected: _showPlane,
+    ),
+    _menuToggle(
+      value: _ViewAction.toggleGrid,
+      icon: Icons.grid_on,
+      label: '网格',
+      selected: _showGrid,
+    ),
+    const PopupMenuDivider(),
+    PopupMenuItem(
+      value: _ViewAction.parallelProjection,
+      child: Row(
+        children: [
+          const Icon(Icons.view_in_ar, size: 20),
+          const SizedBox(width: 12),
+          const Expanded(child: Text('平行投影')),
+          if (_projectionType == ProjectionType.parallel)
+            const Icon(Icons.check, size: 18),
+        ],
+      ),
+    ),
+    PopupMenuItem(
+      value: _ViewAction.perspectiveProjection,
+      child: Row(
+        children: [
+          const Icon(Icons.vrpano, size: 20),
+          const SizedBox(width: 12),
+          const Expanded(child: Text('透视投影')),
+          if (_projectionType == ProjectionType.perspective)
+            const Icon(Icons.check, size: 18),
+        ],
+      ),
+    ),
+    const PopupMenuDivider(),
+    const PopupMenuItem(
+      value: _ViewAction.standardView,
+      child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.home_outlined, size: 20),
+        title: Text('标准视图'),
+      ),
+    ),
+    const PopupMenuItem(
+      value: _ViewAction.topView,
+      child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.vertical_align_bottom, size: 20),
+        title: Text('俯视 xOy'),
+      ),
+    ),
+    const PopupMenuItem(
+      value: _ViewAction.frontView,
+      child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.crop_landscape, size: 20),
+        title: Text('正视 xOz'),
+      ),
+    ),
+    const PopupMenuItem(
+      value: _ViewAction.sideView,
+      child: ListTile(
+        dense: true,
+        contentPadding: EdgeInsets.zero,
+        leading: Icon(Icons.crop_portrait, size: 20),
+        title: Text('侧视 yOz'),
+      ),
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -5024,8 +5051,8 @@ class MathCanvas3DState extends State<MathCanvas3D> {
                           onPressed: () => setState(() {
                             _pointDragMode =
                                 _pointDragMode == PointDragMode.plane
-                                    ? PointDragMode.height
-                                    : PointDragMode.plane;
+                                ? PointDragMode.height
+                                : PointDragMode.plane;
                           }),
                           label: Column(
                             mainAxisSize: MainAxisSize.min,
@@ -5062,9 +5089,7 @@ class MathCanvas3DState extends State<MathCanvas3D> {
                             onEdgeWidthChanged: (width) =>
                                 updateSelectedObjectStyle(edgeWidth: width),
                             onShowEdgesChanged: (showEdges) =>
-                                updateSelectedObjectStyle(
-                              showEdges: showEdges,
-                            ),
+                                updateSelectedObjectStyle(showEdges: showEdges),
                             onDelete: deleteSelectedObject,
                           ),
                         ),
@@ -5211,8 +5236,8 @@ class _SolidStyleControlsState extends State<_SolidStyleControls> {
                     shape: BoxShape.circle,
                     border:
                         widget.object.color == formulaPalette[index].toARGB32()
-                            ? Border.all(color: Colors.black87, width: 3)
-                            : null,
+                        ? Border.all(color: Colors.black87, width: 3)
+                        : null,
                   ),
                   child: widget.object.color == formulaPalette[index].toARGB32()
                       ? const Icon(Icons.check, color: Colors.white, size: 20)
@@ -5540,9 +5565,11 @@ class MathCanvas3DPainter extends CustomPainter {
     final lines = <List<Offset>>[];
 
     // Lines along X (constant Y).
-    for (double y = gridCenter.y - gridRange;
-        y <= gridCenter.y + gridRange;
-        y += step) {
+    for (
+      double y = gridCenter.y - gridRange;
+      y <= gridCenter.y + gridRange;
+      y += step
+    ) {
       if ((y - gridCenter.y).abs() < 1e-10) continue;
       final p1 = worldToScreen(
         Point3D(gridCenter.x - gridRange, y, 0),
@@ -5558,9 +5585,11 @@ class MathCanvas3DPainter extends CustomPainter {
     }
 
     // Lines along Y (constant X).
-    for (double x = gridCenter.x - gridRange;
-        x <= gridCenter.x + gridRange;
-        x += step) {
+    for (
+      double x = gridCenter.x - gridRange;
+      x <= gridCenter.x + gridRange;
+      x += step
+    ) {
       if ((x - gridCenter.x).abs() < 1e-10) continue;
       final p1 = worldToScreen(
         Point3D(x, gridCenter.y - gridRange, 0),
@@ -5643,7 +5672,8 @@ class MathCanvas3DPainter extends CustomPainter {
         final screen = worldToScreen(point, camera, projection);
         final axisDirection = (tipPt - startPt);
         if (axisDirection.distance < 1) continue;
-        final normal = Offset(-axisDirection.dy, axisDirection.dx) /
+        final normal =
+            Offset(-axisDirection.dy, axisDirection.dx) /
             axisDirection.distance;
         final center = Offset(screen.x, screen.y);
         canvas.drawLine(center - normal * 3, center + normal * 3, axisPaint);
@@ -5833,25 +5863,25 @@ class MathCanvas3DPainter extends CustomPainter {
       Object3DType.plane => _planeLabelAnchor(object, camera, projection),
       Object3DType.sphere => _sphereLabelAnchor(object, camera, projection),
       Object3DType.vector => _lineLabelAnchor(
-          Object3D.line(
-            object.point,
-            object.point + object.vector,
-            lineKind: Line3DKind.segment,
-          ),
-          camera,
-          projection,
+        Object3D.line(
+          object.point,
+          object.point + object.vector,
+          lineKind: Line3DKind.segment,
         ),
+        camera,
+        projection,
+      ),
       Object3DType.surface => _frontmostTriangleCentroid(
-          object,
-          camera,
-          projection,
-        ),
+        object,
+        camera,
+        projection,
+      ),
       Object3DType.curve => _curveLabelAnchor(object, camera, projection),
       Object3DType.polyhedron => _frontmostTriangleCentroid(
-          object,
-          camera,
-          projection,
-        ),
+        object,
+        camera,
+        projection,
+      ),
       Object3DType.point => object.point,
     };
     if (anchor == null) return;
@@ -5860,7 +5890,8 @@ class MathCanvas3DPainter extends CustomPainter {
     final color = Color(object.color).withValues(alpha: alpha * object.opacity);
     renderables.add(
       _Renderable(
-        depth: object.type == Object3DType.polyhedron ||
+        depth:
+            object.type == Object3DType.polyhedron ||
                 object.type == Object3DType.surface
             ? screen.z - 1e-6
             : screen.z,
@@ -6017,42 +6048,78 @@ class MathCanvas3DPainter extends CustomPainter {
     for (var fixed = -_planeGridRange; fixed <= _planeGridRange; fixed += 1.0) {
       if (c.abs() >= a.abs() && c.abs() >= b.abs()) {
         considerSegment(
-          Point3D(-_planeGridRange, fixed,
-              (d + a * _planeGridRange - b * fixed) / c),
-          Point3D(_planeGridRange, fixed,
-              (d - a * _planeGridRange - b * fixed) / c),
+          Point3D(
+            -_planeGridRange,
+            fixed,
+            (d + a * _planeGridRange - b * fixed) / c,
+          ),
+          Point3D(
+            _planeGridRange,
+            fixed,
+            (d - a * _planeGridRange - b * fixed) / c,
+          ),
         );
         considerSegment(
-          Point3D(fixed, -_planeGridRange,
-              (d - a * fixed + b * _planeGridRange) / c),
-          Point3D(fixed, _planeGridRange,
-              (d - a * fixed - b * _planeGridRange) / c),
+          Point3D(
+            fixed,
+            -_planeGridRange,
+            (d - a * fixed + b * _planeGridRange) / c,
+          ),
+          Point3D(
+            fixed,
+            _planeGridRange,
+            (d - a * fixed - b * _planeGridRange) / c,
+          ),
         );
       } else if (b.abs() >= a.abs()) {
         considerSegment(
-          Point3D(-_planeGridRange, (d + a * _planeGridRange - c * fixed) / b,
-              fixed),
-          Point3D(_planeGridRange, (d - a * _planeGridRange - c * fixed) / b,
-              fixed),
+          Point3D(
+            -_planeGridRange,
+            (d + a * _planeGridRange - c * fixed) / b,
+            fixed,
+          ),
+          Point3D(
+            _planeGridRange,
+            (d - a * _planeGridRange - c * fixed) / b,
+            fixed,
+          ),
         );
         considerSegment(
-          Point3D(fixed, (d - a * fixed + c * _planeGridRange) / b,
-              -_planeGridRange),
-          Point3D(fixed, (d - a * fixed - c * _planeGridRange) / b,
-              _planeGridRange),
+          Point3D(
+            fixed,
+            (d - a * fixed + c * _planeGridRange) / b,
+            -_planeGridRange,
+          ),
+          Point3D(
+            fixed,
+            (d - a * fixed - c * _planeGridRange) / b,
+            _planeGridRange,
+          ),
         );
       } else {
         considerSegment(
-          Point3D((d + b * _planeGridRange - c * fixed) / a, -_planeGridRange,
-              fixed),
-          Point3D((d - b * _planeGridRange - c * fixed) / a, _planeGridRange,
-              fixed),
+          Point3D(
+            (d + b * _planeGridRange - c * fixed) / a,
+            -_planeGridRange,
+            fixed,
+          ),
+          Point3D(
+            (d - b * _planeGridRange - c * fixed) / a,
+            _planeGridRange,
+            fixed,
+          ),
         );
         considerSegment(
-          Point3D((d - b * fixed + c * _planeGridRange) / a, fixed,
-              -_planeGridRange),
-          Point3D((d - b * fixed - c * _planeGridRange) / a, fixed,
-              _planeGridRange),
+          Point3D(
+            (d - b * fixed + c * _planeGridRange) / a,
+            fixed,
+            -_planeGridRange,
+          ),
+          Point3D(
+            (d - b * fixed - c * _planeGridRange) / a,
+            fixed,
+            _planeGridRange,
+          ),
         );
       }
     }
@@ -6081,19 +6148,15 @@ class MathCanvas3DPainter extends CustomPainter {
     var nearest = double.infinity;
     Point3D? anchor;
     Point3D spherePoint(double theta, double phi) => Point3D(
-          center.x + radius * dart_math.cos(phi) * dart_math.cos(theta),
-          center.y + radius * dart_math.sin(phi),
-          center.z + radius * dart_math.cos(phi) * dart_math.sin(theta),
-        );
+      center.x + radius * dart_math.cos(phi) * dart_math.cos(theta),
+      center.y + radius * dart_math.sin(phi),
+      center.z + radius * dart_math.cos(phi) * dart_math.sin(theta),
+    );
 
     void considerPath(List<Point3D> points) {
       for (var i = 1; i < points.length; i++) {
         final clipped = clipLineToView(
-          Object3D.line(
-            points[i - 1],
-            points[i],
-            lineKind: Line3DKind.segment,
-          ),
+          Object3D.line(points[i - 1], points[i], lineKind: Line3DKind.segment),
           camera,
           projection,
         );
@@ -6116,10 +6179,7 @@ class MathCanvas3DPainter extends CustomPainter {
       final theta = i * 2 * dart_math.pi / segments;
       considerPath([
         for (var j = 0; j <= segments; j++)
-          spherePoint(
-            theta,
-            -dart_math.pi / 2 + j * dart_math.pi / segments,
-          ),
+          spherePoint(theta, -dart_math.pi / 2 + j * dart_math.pi / segments),
       ]);
     }
 
@@ -6346,9 +6406,12 @@ class MathCanvas3DPainter extends CustomPainter {
       final i0 = indices[i];
       final i1 = indices[i + 1];
       final i2 = indices[i + 2];
-      if (i0 < 0 || i0 >= vertices.length ||
-          i1 < 0 || i1 >= vertices.length ||
-          i2 < 0 || i2 >= vertices.length) {
+      if (i0 < 0 ||
+          i0 >= vertices.length ||
+          i1 < 0 ||
+          i1 >= vertices.length ||
+          i2 < 0 ||
+          i2 >= vertices.length) {
         continue;
       }
       final clipped = _clipPolygonToDepthRange(
@@ -6380,7 +6443,7 @@ class MathCanvas3DPainter extends CustomPainter {
       outlinePath.close();
       final avgDepth =
           projected.fold<double>(0, (sum, point) => sum + point.z) /
-              projected.length;
+          projected.length;
 
       renderables.add(
         _Renderable(
@@ -6489,8 +6552,8 @@ class MathCanvas3DPainter extends CustomPainter {
     if (vertices.isEmpty || indices.length < 3) return;
 
     final objAlpha = ((obj.color >> 24) & 0xFF) / 255.0;
-    final fillColor =
-        Color(obj.color).withValues(alpha: objAlpha * obj.opacity);
+    final fillColor = Color(obj.color)
+        .withValues(alpha: objAlpha * obj.opacity);
     final fillPaint = Paint()
       ..color = fillColor
       ..style = PaintingStyle.fill;
@@ -6538,7 +6601,8 @@ class MathCanvas3DPainter extends CustomPainter {
             ..close(),
         );
       }
-      final depth = projected.fold<double>(0, (sum, point) => sum + point.z) /
+      final depth =
+          projected.fold<double>(0, (sum, point) => sum + point.z) /
           projected.length;
       final faceIndex = facePaths.length;
       facePaths.add(paths);
@@ -6559,7 +6623,8 @@ class MathCanvas3DPainter extends CustomPainter {
       for (final entry in edgeNormals.entries) {
         final normals = entry.value;
         final firstNormal = normals.first;
-        final isCrease = normals.length == 1 ||
+        final isCrease =
+            normals.length == 1 ||
             normals.any((normal) => firstNormal.dot(normal).abs() < 0.9999);
         if (!isCrease) continue;
 
@@ -6581,8 +6646,10 @@ class MathCanvas3DPainter extends CustomPainter {
           (first, second) =>
               faceDepths[first] <= faceDepths[second] ? first : second,
         );
-        faceEdges[ownerFace]
-            .add((Offset(start.x, start.y), Offset(end.x, end.y)));
+        faceEdges[ownerFace].add((
+          Offset(start.x, start.y),
+          Offset(end.x, end.y),
+        ));
       }
     }
 
@@ -6707,9 +6774,7 @@ class MathCanvas3DPainter extends CustomPainter {
         if (clipped.length != 2) continue;
         final start = worldToScreen(clipped[0], camera, projection);
         final end = worldToScreen(clipped[1], camera, projection);
-        projectedSegments.add(
-          (Offset(start.x, start.y), Offset(end.x, end.y)),
-        );
+        projectedSegments.add((Offset(start.x, start.y), Offset(end.x, end.y)));
         totalDepth += start.z + end.z;
       }
       pathStart = pathEnd;

@@ -1,5 +1,4 @@
-import 'package:function_tree/function_tree.dart';
-
+import 'math_expression_parser.dart';
 import 'math_input_catalog.dart';
 
 /// The type of a math expression.
@@ -13,8 +12,8 @@ enum MathExpressionType {
 
 /// Represents a single math expression with its various forms.
 ///
-/// Uses [function_tree] for expression parsing and evaluation, enabling
-/// native Flutter rendering without WebView/JSXGraph dependencies.
+/// Uses a native expression parser for evaluation, enabling Flutter rendering
+/// without WebView/JSXGraph dependencies.
 ///
 /// For explicit functions (e.g. "x^2", "sin(x)"), [evaluator] is a
 /// [double Function(double)] and [samplePoints] samples y = f(x).
@@ -25,7 +24,7 @@ class MathExpression {
   /// The raw expression as entered by the user (e.g. "x^2", "x=1").
   final String rawExpression;
 
-  /// The normalized expression ready for [function_tree] parsing.
+  /// The normalized expression ready for numeric parsing.
   final String normalizedExpression;
 
   /// The type of expression (explicit or implicit).
@@ -102,7 +101,7 @@ class MathExpression {
     // Detect implicit equations: body contains '=' that's not part of y= or f(x)=
     final isEquation = _isEquation(body);
 
-    // Normalize the expression for function_tree
+    // Normalize the expression for numeric parsing.
     var normalized = '';
 
     // Try to parse and create evaluator
@@ -120,8 +119,10 @@ class MathExpression {
           // Normalize the implicit expression
           final normalizedImplicit = _normalizeExpression(implicitExpr);
           // Create multi-variable evaluator with x and y
-          implicitFn =
-              _createImplicitEvaluator(normalizedImplicit, parameterValues);
+          implicitFn = _createImplicitEvaluator(
+            normalizedImplicit,
+            parameterValues,
+          );
           // Also create a backward-compat explicit evaluator (y=0 slice)
           evalFn = (double x) => implicitFn!(x, 0.0);
         } else {
@@ -145,7 +146,8 @@ class MathExpression {
           : MathExpressionType.explicit,
       latexDisplay: _toLatexDisplay(trimmed),
       parameters: params,
-      evaluator: evalFn ??
+      evaluator:
+          evalFn ??
           ((double x) {
             throw error ?? 'Unknown parse error';
           }),
@@ -166,8 +168,9 @@ class MathExpression {
       if (type == MathExpressionType.implicit) {
         final eqParts = normalizedExpression.split('=');
         if (eqParts.length == 2) {
-          final implicitExpr =
-              _normalizeExpression('(${eqParts[0]})-(${eqParts[1]})');
+          final implicitExpr = _normalizeExpression(
+            '(${eqParts[0]})-(${eqParts[1]})',
+          );
           implicitFn = _createImplicitEvaluator(implicitExpr, parameterValues);
           evalFn = (double x) => implicitFn!(x, 0.0);
         }
@@ -184,7 +187,8 @@ class MathExpression {
       type: type,
       latexDisplay: latexDisplay,
       parameters: parameters,
-      evaluator: evalFn ??
+      evaluator:
+          evalFn ??
           ((double x) {
             throw error ?? 'Unknown parse error';
           }),
@@ -413,25 +417,83 @@ class MathExpression {
         // edge pairs. Connecting opposite edges would draw a false crossing.
         if (crossings.length == 2) {
           final p1 = _crossingPoint(
-              crossings[0], bottomT, topT, leftT, rightT, x, y, stepX, stepY);
+            crossings[0],
+            bottomT,
+            topT,
+            leftT,
+            rightT,
+            x,
+            y,
+            stepX,
+            stepY,
+          );
           final p2 = _crossingPoint(
-              crossings[1], bottomT, topT, leftT, rightT, x, y, stepX, stepY);
+            crossings[1],
+            bottomT,
+            topT,
+            leftT,
+            rightT,
+            x,
+            y,
+            stepX,
+            stepY,
+          );
           if (p1 != null && p2 != null) {
             result.add([p1, p2]);
           }
         } else if (crossings.length == 4) {
           final pBottom = _crossingPoint(
-              'bottom', bottomT, topT, leftT, rightT, x, y, stepX, stepY);
+            'bottom',
+            bottomT,
+            topT,
+            leftT,
+            rightT,
+            x,
+            y,
+            stepX,
+            stepY,
+          );
           final pTop = _crossingPoint(
-              'top', bottomT, topT, leftT, rightT, x, y, stepX, stepY);
+            'top',
+            bottomT,
+            topT,
+            leftT,
+            rightT,
+            x,
+            y,
+            stepX,
+            stepY,
+          );
           final pLeft = _crossingPoint(
-              'left', bottomT, topT, leftT, rightT, x, y, stepX, stepY);
+            'left',
+            bottomT,
+            topT,
+            leftT,
+            rightT,
+            x,
+            y,
+            stepX,
+            stepY,
+          );
           final pRight = _crossingPoint(
-              'right', bottomT, topT, leftT, rightT, x, y, stepX, stepY);
-          final scale = [v00.abs(), v10.abs(), v01.abs(), v11.abs()]
-              .reduce((a, b) => a > b ? a : b);
-          final determinant = (v00 / scale) * (v11 / scale) -
-              (v10 / scale) * (v01 / scale);
+            'right',
+            bottomT,
+            topT,
+            leftT,
+            rightT,
+            x,
+            y,
+            stepX,
+            stepY,
+          );
+          final scale = [
+            v00.abs(),
+            v10.abs(),
+            v01.abs(),
+            v11.abs(),
+          ].reduce((a, b) => a > b ? a : b);
+          final determinant =
+              (v00 / scale) * (v11 / scale) - (v10 / scale) * (v01 / scale);
           if (determinant >= 0) {
             if (pBottom != null && pRight != null) {
               result.add([pBottom, pRight]);
@@ -461,8 +523,17 @@ class MathExpression {
     return scaledA / (scaledA + scaledB);
   }
 
-  Map<String, double>? _crossingPoint(String edge, double? bT, double? tT,
-      double? lT, double? rT, double x, double y, double stepX, double stepY) {
+  Map<String, double>? _crossingPoint(
+    String edge,
+    double? bT,
+    double? tT,
+    double? lT,
+    double? rT,
+    double x,
+    double y,
+    double stepX,
+    double stepY,
+  ) {
     switch (edge) {
       case 'bottom':
         return bT == null ? null : {'x': x + bT * stepX, 'y': y};
@@ -495,14 +566,17 @@ class MathExpression {
     final variableNames = [
       'x',
       'y',
-      ...values.keys.where((k) => k != 'x' && k != 'y')
+      ...values.keys.where((k) => k != 'x' && k != 'y'),
     ];
-    final multiFunc = normalized.toMultiVariableFunction(variableNames);
+    final evaluate = MathExpressionParser.parse(
+      normalized,
+      variables: variableNames,
+    );
     return (double x, double y) {
       final args = Map<String, num>.from(values);
       args['x'] = x;
       args['y'] = y;
-      return multiFunc(args).toDouble();
+      return evaluate(args);
     };
   }
 
@@ -513,9 +587,9 @@ class MathExpression {
   /// Strip common prefixes like "y = ", "f(x) = " from the expression.
   static String _stripPrefix(String expr) {
     // Try f(x) = (with optional spaces)
-    final fxMatch =
-        RegExp(r'^f\s*(?:\\left\s*)?\(\s*x\s*(?:\\right\s*)?\)\s*=\s*')
-            .firstMatch(expr);
+    final fxMatch = RegExp(
+      r'^f\s*(?:\\left\s*)?\(\s*x\s*(?:\\right\s*)?\)\s*=\s*',
+    ).firstMatch(expr);
     if (fxMatch != null) {
       return expr.substring(fxMatch.end);
     }
@@ -527,7 +601,7 @@ class MathExpression {
     return expr;
   }
 
-  /// Normalize an expression for [function_tree] parsing.
+  /// Normalize an expression for numeric parsing.
   ///
   /// Handles:
   /// - LaTeX braces `{}` → `()` so that `2^{x-1}` becomes `2^(x-1)`
@@ -545,8 +619,7 @@ class MathExpression {
 
     // Preserve token boundaries: "\\alpha x" is alpha*x, not alphax.
     result = _addImplicitMultiplication(result);
-    // function_tree sanitizes unknown punctuation by deleting it. Reject it
-    // here so unsupported relations cannot silently change into a curve.
+    // Reject unsupported punctuation rather than silently dropping it.
     if (RegExp(r'[^a-zA-Z0-9_+\-*/%^(),.=]').hasMatch(result)) {
       throw const FormatException('此结构可编辑，但绘图引擎暂不支持');
     }
@@ -620,7 +693,11 @@ class MathExpression {
 
   /// Read a balanced LaTeX group, including nested templates.
   static (String, int)? _latexGroup(
-      String source, int start, String open, String close) {
+    String source,
+    int start,
+    String open,
+    String close,
+  ) {
     while (start < source.length && source[start] == ' ') {
       start++;
     }
@@ -662,8 +739,13 @@ class MathExpression {
         argumentStart++;
       }
       if (result.startsWith(r'\left', argumentStart)) argumentStart += 5;
-      final group = _latexGroup(
-              result, argumentStart, isRoot ? '{' : '(', isRoot ? '}' : ')') ??
+      final group =
+          _latexGroup(
+            result,
+            argumentStart,
+            isRoot ? '{' : '(',
+            isRoot ? '}' : ')',
+          ) ??
           _latexGroup(result, argumentStart, '{', '}');
       if (group == null) throw const FormatException('请为根式或对数填写括号内的内容');
       var argumentSource = group.$1;
@@ -672,8 +754,9 @@ class MathExpression {
       }
       final argument = _convertLatex(argumentSource);
       final base = _convertLatex(index.$1);
-      final replacement =
-          isRoot ? 'nrt(($base),($argument))' : '(ln($argument)/ln($base))';
+      final replacement = isRoot
+          ? 'nrt(($base),($argument))'
+          : '(ln($argument)/ln($base))';
       var groupEnd = group.$2;
       if (!isRoot && result.startsWith(r'\right)', groupEnd)) {
         groupEnd += r'\right)'.length;
@@ -724,8 +807,10 @@ class MathExpression {
       RegExp(r'\\mathrm\{([a-zA-Z](?:\w|\\_)*)\}'),
       (match) => ' ${match[1]!.replaceAll(r'\_', '_')} ',
     );
-    result = result.replaceAllMapped(RegExp(r'\\operatorname\{([a-zA-Z]+)\}'),
-        (m) => _knownFunctions.contains(m[1]) ? m[1]! : m[0]!);
+    result = result.replaceAllMapped(
+      RegExp(r'\\operatorname\{([a-zA-Z]+)\}'),
+      (m) => _knownFunctions.contains(m[1]) ? m[1]! : m[0]!,
+    );
     result = result.replaceAll(RegExp(r'\\(?:dfrac|tfrac)\b'), r'\frac');
     // Paired bars are an absolute-value structure, rather than variable names.
     while (result.contains(r'\left|')) {
@@ -737,8 +822,9 @@ class MathExpression {
       result = result.replaceRange(start, end + 7, 'abs($content)');
     }
     result = result.replaceAll(
-        RegExp(r'\\(?:left|right)\s*(?=\\(?:[lr]floor|[lr]ceil)(?![a-zA-Z]))'),
-        '');
+      RegExp(r'\\(?:left|right)\s*(?=\\(?:[lr]floor|[lr]ceil)(?![a-zA-Z]))'),
+      '',
+    );
     for (final fence in {
       r'\lfloor': (r'\rfloor', 'floor'),
       r'\lceil': (r'\rceil', 'ceil'),
@@ -750,7 +836,10 @@ class MathExpression {
         if (start < 0) throw const FormatException('取整括号未完成');
         final content = result.substring(start + fence.key.length, end);
         result = result.replaceRange(
-            start, end + fence.value.$1.length, '${fence.value.$2}($content)');
+          start,
+          end + fence.value.$1.length,
+          '${fence.value.$2}($content)',
+        );
       }
     }
 
@@ -759,7 +848,7 @@ class MathExpression {
     //    after \frac. Works with nested braces.
     result = _replaceFrac(result);
 
-    // 2) Remove \left and \right (they add no meaning for function_tree)
+    // 2) Remove \left and \right (they add no meaning to numeric parsing)
     result = result.replaceAll(RegExp(r'\\left\b'), '');
     result = result.replaceAll(RegExp(r'\\right\b'), '');
 
@@ -769,7 +858,7 @@ class MathExpression {
     result = result.replaceAll(RegExp(r'\\div(?![a-zA-Z])'), '/');
     result = result.replaceAll(RegExp(r'\\(?:bmod|mod)(?![a-zA-Z])'), '%');
 
-    // 4) Functions (known to function_tree)
+    // 4) Functions supported by the numeric parser
     result = result.replaceAll(RegExp(r'\\sin\b'), 'sin');
     result = result.replaceAll(RegExp(r'\\cos\b'), 'cos');
     result = result.replaceAll(RegExp(r'\\tan\b'), 'tan');
@@ -836,8 +925,11 @@ class MathExpression {
       final start = _operandStart(result, end);
       if (start == null) throw const FormatException('后缀运算缺少完整的表达式');
       final operand = result.substring(start, end);
-      result = result.replaceRange(start, match.end,
-          match[0] == '!' ? 'fact($operand)' : '(($operand)/100)');
+      result = result.replaceRange(
+        start,
+        match.end,
+        match[0] == '!' ? 'fact($operand)' : '(($operand)/100)',
+      );
     }
   }
 
@@ -856,14 +948,14 @@ class MathExpression {
         if (source[start] == open) depth--;
       }
       if (depth != 0) return null;
-      final function =
-          RegExp(r'[a-zA-Z]+$').firstMatch(source.substring(0, start));
+      final function = RegExp(r'[a-zA-Z]+$')
+          .firstMatch(source.substring(0, start));
       if (function != null && _knownFunctions.contains(function[0]))
         start = function.start;
     } else {
-      final atom =
-          RegExp(r'(?:[a-zA-Z]\w*|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)$')
-              .firstMatch(source.substring(0, end));
+      final atom = RegExp(
+        r'(?:[a-zA-Z]\w*|(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?)$',
+      ).firstMatch(source.substring(0, end));
       if (atom == null) return null;
       start = atom.start;
     }
@@ -907,7 +999,8 @@ class MathExpression {
         if (_knownFunctions.contains(previous) && token != '(') {
           throw const FormatException('函数参数请放在括号内');
         }
-        final variableBeforeParen = identifier(previous) &&
+        final variableBeforeParen =
+            identifier(previous) &&
             !_knownFunctions.contains(previous) &&
             (previous.length == 1 ||
                 previous.contains('_') ||
@@ -918,7 +1011,8 @@ class MathExpression {
                 (identifier(token) || number(token) || token == '(')) ||
             (identifier(previous) && identifier(token)) ||
             (identifier(previous) && number(token)) ||
-            (variableBeforeParen && token == '(')) result.write('*');
+            (variableBeforeParen && token == '('))
+          result.write('*');
       }
       result.write(token);
     }
@@ -945,7 +1039,7 @@ class MathExpression {
 
   /// Create an evaluator [double Function(double)] from a normalized expression.
   ///
-  /// Uses [function_tree] to parse the expression into a callable function.
+  /// Parses the expression into a callable function.
   /// [parameterValues] provides values for parameters (e.g., a, b, c).
   /// The variable `x` is the independent variable.
   static double Function(double) _createEvaluator(
@@ -956,7 +1050,7 @@ class MathExpression {
     // and built-in constants like e and pi).
     // This ensures we handle parameters like a, b, c even if no values provided.
     final variableNames = <String>['x'];
-    // Built-in constants in function_tree that should not be treated as variables
+    // Built-in constants that should not be treated as variables.
     // Use a simple regex to find potential variable names
     final varMatches = RegExp(r'\b([a-zA-Z]\w*)\b').allMatches(normalized);
     for (final m in varMatches) {
@@ -972,27 +1066,22 @@ class MathExpression {
 
     // If there are additional variables (parameters), use multi-variable function.
     // Otherwise use the simpler single-variable function.
-    if (variableNames.length > 1 || parameterValues.isNotEmpty) {
-      // Merge provided parameter values with defaults for any unset variables
-      final mergedParams = Map<String, double>.from(parameterValues);
-      for (final name in variableNames) {
-        if (name != 'x' && !mergedParams.containsKey(name)) {
-          mergedParams[name] = 1.0; // Default value for parameters
-        }
+    // Merge provided parameter values with defaults for any unset variables.
+    final mergedParams = Map<String, double>.from(parameterValues);
+    for (final name in variableNames) {
+      if (name != 'x' && !mergedParams.containsKey(name)) {
+        mergedParams[name] = 1.0;
       }
-
-      final multiFunc = normalized.toMultiVariableFunction(variableNames);
-      return (double x) {
-        final args = Map<String, num>.from(mergedParams);
-        args['x'] = x;
-        final result = multiFunc(args);
-        return result.toDouble();
-      };
-    } else {
-      // Simple single-variable function (just x)
-      final singleFunc = normalized.toSingleVariableFunction();
-      return (double x) => singleFunc(x).toDouble();
     }
+    final evaluate = MathExpressionParser.parse(
+      normalized,
+      variables: variableNames,
+    );
+    return (double x) {
+      final args = Map<String, num>.from(mergedParams);
+      args['x'] = x;
+      return evaluate(args);
+    };
   }
 
   // ==================================================================
@@ -1080,7 +1169,8 @@ class MathExpression {
     // Convert known functions to Math.* equivalents
     expr = expr.replaceAllMapped(
       RegExp(
-          r'\b(sin|cos|tan|sqrt|abs|ln|log|exp|asin|acos|atan|sinh|cosh|tanh)\('),
+        r'\b(sin|cos|tan|sqrt|abs|ln|log|exp|asin|acos|atan|sinh|cosh|tanh)\(',
+      ),
       (m) => 'Math.${m[1]}(',
     );
 
@@ -1101,10 +1191,7 @@ class MathExpression {
     expr = expr.replaceAllMapped(RegExp(r'\be\b'), (_) => 'Math.E');
 
     // Handle pi
-    expr = expr.replaceAllMapped(
-      RegExp(r'\bpi\b'),
-      (_) => 'Math.PI',
-    );
+    expr = expr.replaceAllMapped(RegExp(r'\bpi\b'), (_) => 'Math.PI');
 
     return expr;
   }
