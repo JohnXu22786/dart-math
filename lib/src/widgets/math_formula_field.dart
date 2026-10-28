@@ -40,6 +40,7 @@ class MathFormulaField extends StatefulWidget {
     this.fillColor,
   });
 
+  /// Whether this platform can run the embedded MathLive WebView.
   static bool get supported =>
       !kIsWeb &&
       defaultTargetPlatform != TargetPlatform.linux &&
@@ -63,21 +64,29 @@ class MathFormulaFieldState extends State<MathFormulaField>
   Future<void> _pending = Future.value();
   bool _ready = false;
   bool _receiving = false;
+  bool _applyingFallbackEdit = false;
+  bool _applyingFallbackNavigation = false;
   bool _hasUnsupportedSyntax = false;
   int _revision = 0;
   int _sequence = -1;
   String _lastSource = '';
+  late TextSelection _lastSelection;
+  int? _preferredVerticalColumn;
   String? _failure;
   ColorScheme? _colorScheme;
   String _location = '公式';
+  final List<TextEditingValue> _fallbackUndo = [];
+  final List<TextEditingValue> _fallbackRedo = [];
   String get location => _location;
   int get revision => _revision;
-  bool get ready => _ready && _failure == null;
+  bool get _usesFallback => !widget.showWebView || !MathFormulaField.supported;
+  bool get ready => (_ready && _failure == null) || _usesFallback;
 
   @override
   void initState() {
     super.initState();
     _lastSource = widget.controller.text;
+    _lastSelection = widget.controller.selection;
     widget.controller.addListener(_sourceChanged);
   }
 
@@ -111,18 +120,36 @@ class MathFormulaFieldState extends State<MathFormulaField>
     if (oldWidget.controller != widget.controller) {
       oldWidget.controller.removeListener(_sourceChanged);
       widget.controller.addListener(_sourceChanged);
+      _fallbackUndo.clear();
+      _fallbackRedo.clear();
       _lastSource = widget.controller.text;
+      _lastSelection = widget.controller.selection;
+      _preferredVerticalColumn = null;
       _revision++;
       unawaited(_syncSource());
     }
   }
 
   void _sourceChanged() {
-    if (_receiving || widget.controller.text == _lastSource) return;
-    _lastSource = widget.controller.text;
-    _revision++;
-    _sequence = -1;
-    unawaited(_syncSource());
+    final controller = widget.controller;
+    final textChanged = controller.text != _lastSource;
+    final selectionChanged = controller.selection != _lastSelection;
+    if (_receiving || (!textChanged && !selectionChanged)) return;
+    _lastSelection = controller.selection;
+    if (textChanged) {
+      _lastSource = controller.text;
+      _revision++;
+      _sequence = -1;
+      _preferredVerticalColumn = null;
+      if (!_applyingFallbackEdit) {
+        _fallbackUndo.clear();
+        _fallbackRedo.clear();
+      }
+      unawaited(_syncSource());
+    }
+    if (selectionChanged && !_applyingFallbackNavigation) {
+      _preferredVerticalColumn = null;
+    }
   }
 
   Future<void> _enqueue(Future<void> Function() action) {
@@ -188,16 +215,241 @@ class MathFormulaFieldState extends State<MathFormulaField>
   }
 
   /// Queue commands and consume their returned snapshot before page actions.
-  Future<void> command(String kind, String value) => _enqueue(() async {
-    if (!_ready || _failure != null) return;
-    final result = await _web!.evaluateJavascript(
-      source:
-          'window.stroomMath.command(${jsonEncode(kind)}, ${jsonEncode(value)})',
+  Future<void> command(String kind, String value) {
+    if (_usesFallback) {
+      _fallbackCommand(kind, value);
+      return Future.value();
+    }
+    return _enqueue(() async {
+      if (!_ready || _failure != null) return;
+      final result = await _web!.evaluateJavascript(
+        source:
+            'window.stroomMath.command(${jsonEncode(kind)}, ${jsonEncode(value)})',
+      );
+      _acceptResult(result);
+    });
+  }
+
+  void _fallbackCommand(String kind, String value) {
+    final controller = widget.controller;
+    final text = controller.text;
+    final selection = controller.selection;
+    final start = selection.isValid
+        ? selection.start.clamp(0, text.length).toInt()
+        : text.length;
+    final end = selection.isValid
+        ? selection.end.clamp(0, text.length).toInt()
+        : text.length;
+    final characterBoundary = CharacterBoundary(text);
+
+    if (kind == 'navigate') {
+      final caret = selection.isValid ? selection.extentOffset : text.length;
+      final isVertical = value == 'up' || value == 'down';
+      if (isVertical) {
+        _preferredVerticalColumn ??= _graphemeColumn(
+          text,
+          _lineStart(text, caret),
+          caret,
+        );
+      } else {
+        _preferredVerticalColumn = null;
+      }
+      final offset = switch (value) {
+        'left' =>
+          start == end
+              ? characterBoundary.getLeadingTextBoundaryAt(start - 1) ?? 0
+              : start,
+        'right' =>
+          start == end
+              ? characterBoundary.getTrailingTextBoundaryAt(end) ?? text.length
+              : end,
+        'up' => _verticalOffset(
+          text,
+          caret,
+          _preferredVerticalColumn!,
+          down: false,
+        ),
+        'down' => _verticalOffset(
+          text,
+          caret,
+          _preferredVerticalColumn!,
+          down: true,
+        ),
+        'out' => text.length,
+        _ => null,
+      };
+      if (offset != null) {
+        _applyingFallbackNavigation = isVertical;
+        try {
+          controller.selection = TextSelection.collapsed(
+            offset: offset.clamp(0, text.length).toInt(),
+          );
+        } finally {
+          _applyingFallbackNavigation = false;
+        }
+      }
+      return;
+    }
+
+    if (kind == 'insert') {
+      _replaceFallbackText(text, start, end, value);
+      return;
+    }
+    if (kind != 'command') return;
+
+    switch (value) {
+      case 'deleteBackward':
+        final replaceStart = start == end && start > 0
+            ? characterBoundary.getLeadingTextBoundaryAt(start - 1) ?? start
+            : start;
+        _replaceFallbackText(text, replaceStart, end, '');
+      case 'deleteForward':
+        final replaceEnd = start == end && end < text.length
+            ? characterBoundary.getTrailingTextBoundaryAt(end) ?? end
+            : end;
+        _replaceFallbackText(text, start, replaceEnd, '');
+      case 'selectAll':
+        controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: text.length,
+        );
+      case 'undo':
+        _restoreFallbackValue(_fallbackUndo, _fallbackRedo);
+      case 'redo':
+        _restoreFallbackValue(_fallbackRedo, _fallbackUndo);
+    }
+  }
+
+  int _lineStart(String text, int offset) {
+    final newline = offset == 0 ? -1 : text.lastIndexOf('\n', offset - 1);
+    return newline < 0 ? 0 : newline + 1;
+  }
+
+  int _verticalOffset(
+    String text,
+    int offset,
+    int column, {
+    required bool down,
+  }) {
+    final currentLineStart = _lineStart(text, offset);
+    if (down) {
+      final currentLineEnd = text.indexOf('\n', currentLineStart);
+      if (currentLineEnd < 0) return offset;
+      final nextLineStart = currentLineEnd + 1;
+      final nextLineEnd = text.indexOf('\n', nextLineStart);
+      final maxOffset = nextLineEnd < 0 ? text.length : nextLineEnd;
+      return _offsetForColumn(text, nextLineStart, maxOffset, column);
+    }
+
+    if (currentLineStart == 0) return offset;
+    final previousLineEnd = currentLineStart - 1;
+    final previousLineStart = _lineStart(text, previousLineEnd);
+    return _offsetForColumn(text, previousLineStart, previousLineEnd, column);
+  }
+
+  int _graphemeColumn(String text, int lineStart, int offset) {
+    final boundary = CharacterBoundary(text);
+    var position = lineStart;
+    var column = 0;
+    while (position < offset) {
+      final next = boundary.getTrailingTextBoundaryAt(position);
+      if (next == null || next <= position || next > offset) break;
+      position = next;
+      column++;
+    }
+    return column;
+  }
+
+  int _offsetForColumn(String text, int lineStart, int lineEnd, int column) {
+    final boundary = CharacterBoundary(text);
+    var position = lineStart;
+    for (var i = 0; i < column && position < lineEnd; i++) {
+      final next = boundary.getTrailingTextBoundaryAt(position);
+      if (next == null || next <= position || next > lineEnd) break;
+      position = next;
+    }
+    return position;
+  }
+
+  void _replaceFallbackText(
+    String text,
+    int start,
+    int end,
+    String replacement,
+  ) {
+    final updated = text.replaceRange(start, end, replacement);
+    if (updated == text) {
+      widget.controller.selection = TextSelection.collapsed(
+        offset: start + replacement.length,
+      );
+      return;
+    }
+    _fallbackUndo.add(widget.controller.value);
+    _fallbackRedo.clear();
+    _applyFallbackValue(
+      TextEditingValue(
+        text: updated,
+        selection: TextSelection.collapsed(offset: start + replacement.length),
+      ),
     );
-    _acceptResult(result);
-  });
+  }
+
+  void _restoreFallbackValue(
+    List<TextEditingValue> source,
+    List<TextEditingValue> destination,
+  ) {
+    if (source.isEmpty) return;
+    destination.add(widget.controller.value);
+    _applyFallbackValue(source.removeLast());
+  }
+
+  void _applyFallbackValue(TextEditingValue value) {
+    _applyingFallbackEdit = true;
+    try {
+      widget.controller.value = value;
+    } finally {
+      _applyingFallbackEdit = false;
+    }
+    widget.onChanged();
+  }
 
   Future<void> clipboard(String action) async {
+    if (_usesFallback) {
+      final controller = widget.controller;
+      final value = controller.value;
+      final text = value.text;
+      final selection = value.selection;
+      final start = selection.isValid
+          ? selection.start.clamp(0, text.length).toInt()
+          : 0;
+      final end = selection.isValid
+          ? selection.end.clamp(0, text.length).toInt()
+          : text.length;
+      if (action == 'paste') {
+        final data = await Clipboard.getData(Clipboard.kTextPlain);
+        if (mounted &&
+            data?.text != null &&
+            identical(widget.controller, controller) &&
+            controller.value == value) {
+          _fallbackCommand('insert', data!.text!);
+        }
+      } else if (action == 'copy' && selection.isValid && start != end) {
+        await Clipboard.setData(
+          ClipboardData(text: text.substring(start, end)),
+        );
+      } else if (action == 'cut' && selection.isValid && start != end) {
+        final selectedValue = controller.value;
+        await Clipboard.setData(
+          ClipboardData(text: text.substring(start, end)),
+        );
+        if (mounted &&
+            identical(widget.controller, controller) &&
+            controller.value == selectedValue) {
+          _replaceFallbackText(text, start, end, '');
+        }
+      }
+      return;
+    }
     if (action == 'paste') {
       final data = await Clipboard.getData(Clipboard.kTextPlain);
       if (mounted && data?.text != null) await command('insert', data!.text!);
@@ -270,9 +522,8 @@ class MathFormulaFieldState extends State<MathFormulaField>
   Widget build(BuildContext context) {
     super.build(context);
     final cs = Theme.of(context).colorScheme;
-    final mathematicalMode =
-        widget.mathematical &&
-        (!widget.showWebView || MathFormulaField.supported);
+    final mathematicalMode = widget.mathematical;
+    final usesFallback = _usesFallback;
     final toggle = !widget.allowModeSwitch
         ? const SizedBox.shrink()
         : IconButton(
@@ -280,14 +531,14 @@ class MathFormulaFieldState extends State<MathFormulaField>
               mathematicalMode ? Icons.keyboard : Icons.calculate_outlined,
               size: 20,
             ),
-            tooltip: widget.showWebView && !MathFormulaField.supported
-                ? '当前平台暂不支持数学编辑，使用 LaTeX 源码输入'
+            tooltip: usesFallback
+                ? mathematicalMode
+                      ? '切换到 LaTeX 源码输入'
+                      : '切换到数学键盘（内置公式预览）'
                 : mathematicalMode
                 ? '切换到系统键盘 / LaTeX 源码'
                 : '切换到数学键盘',
-            onPressed: widget.showWebView && !MathFormulaField.supported
-                ? null
-                : _toggle,
+            onPressed: _toggle,
             constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
           );
     return Column(
@@ -332,7 +583,7 @@ class MathFormulaFieldState extends State<MathFormulaField>
                         : Stack(
                             children: [
                               InAppWebView(
-                                initialFile: 'packages/dart_math/assets/vendor/mathlive/editor.html',
+                                initialFile: 'packages/visual_math/assets/vendor/mathlive/editor.html',
                                 initialSettings: InAppWebViewSettings(
                                   javaScriptEnabled: true,
                                   transparentBackground: true,
