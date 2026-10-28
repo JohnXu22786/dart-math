@@ -120,16 +120,22 @@ class _MathDrawingPageState extends State<MathDrawingPage>
     if (mathematical) {
       _ensureFormulaVisible(formula);
     }
-    unawaited(SharedPreferences.getInstance()
-        .then((prefs) => prefs.setBool(_modePreference, mathematical)));
+    unawaited(
+      SharedPreferences.getInstance().then(
+        (prefs) => prefs.setBool(_modePreference, mathematical),
+      ),
+    );
   }
 
   void _ensureFormulaVisible(_FormulaState formula) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final rowContext = formula.rowKey.currentContext;
       if (mounted && rowContext != null) {
-        Scrollable.ensureVisible(rowContext,
-            alignment: 0, duration: const Duration(milliseconds: 120));
+        Scrollable.ensureVisible(
+          rowContext,
+          alignment: 0,
+          duration: const Duration(milliseconds: 120),
+        );
       }
     });
   }
@@ -161,8 +167,9 @@ class _MathDrawingPageState extends State<MathDrawingPage>
   }
 
   Future<void> _onTabChanged() async {
-    final target =
-        _tabController.index == 0 ? ViewMode.mode2D : ViewMode.mode3D;
+    final target = _tabController.index == 0
+        ? ViewMode.mode2D
+        : ViewMode.mode3D;
     if (_tabController.indexIsChanging || target == _currentView) return;
     _dismissKeyboard();
     await _flushEditors();
@@ -203,9 +210,11 @@ class _MathDrawingPageState extends State<MathDrawingPage>
 
       final parsed = MathExpression.fromInput(text);
       if (!parsed.isValid) {
-        _showError(text.contains(r'\placeholder')
-            ? '公式仍有空槽，请填写后再绘图。'
-            : '此公式暂不能绘图，编辑内容已保留。${parsed.parseError ?? ""}');
+        _showError(
+          text.contains(r'\placeholder')
+              ? '公式仍有空槽，请填写后再绘图。'
+              : '此公式暂不能绘图，编辑内容已保留。${parsed.parseError ?? ""}',
+        );
         return;
       }
       entries.add(
@@ -221,8 +230,9 @@ class _MathDrawingPageState extends State<MathDrawingPage>
     setState(() {
       _activeParameterNames = {
         for (final entry in entries)
-          ...entry.parsed!.parameters
-              .where((name) => name != 'x' && name != 'y'),
+          ...entry.parsed!.parameters.where(
+            (name) => name != 'x' && name != 'y',
+          ),
       };
       for (final name in _activeParameterNames) {
         _parameters.putIfAbsent(name, MathParameter.new);
@@ -341,8 +351,10 @@ class _MathDrawingPageState extends State<MathDrawingPage>
   }
 
   void _addFormula() {
-    final used =
-        _formulas.where((f) => f.autoColor).map((f) => f.color).toSet();
+    final used = _formulas
+        .where((f) => f.autoColor)
+        .map((f) => f.color)
+        .toSet();
     final color = nextFormulaColor(used);
 
     setState(() {
@@ -489,30 +501,32 @@ class _MathDrawingPageState extends State<MathDrawingPage>
     final cs = Theme.of(context).colorScheme;
 
     return PopScope(
-        canPop: !_keyboardVisible,
-        onPopInvokedWithResult: (didPop, _) {
-          if (!didPop && _keyboardVisible) _dismissKeyboard();
-        },
-        child: Scaffold(
-          appBar: AppBar(
-            title: const Text('数学绘图'),
-            actions: [
-              if (_currentView == ViewMode.mode2D)
-                IconButton(
-                  icon: const Icon(Icons.center_focus_strong, size: 20),
-                  tooltip: '重置视图',
-                  onPressed: _onResetView,
-                ),
-            ],
-          ),
-          body: LayoutBuilder(builder: (context, constraints) {
+      canPop: !_keyboardVisible,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && _keyboardVisible) _dismissKeyboard();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('数学绘图'),
+          actions: [
+            if (_currentView == ViewMode.mode2D)
+              IconButton(
+                icon: const Icon(Icons.center_focus_strong, size: 20),
+                tooltip: '重置视图',
+                onPressed: _onResetView,
+              ),
+          ],
+        ),
+        body: LayoutBuilder(
+          builder: (context, constraints) {
             final availableHeight = (constraints.maxHeight - 48)
                 .clamp(0.0, double.infinity)
                 .toDouble();
             final formulaListBaseHeight =
                 availableHeight * (_keyboardVisible ? 0.28 : 0.4);
-            final keyboardBaseHeight =
-                _keyboardVisible ? availableHeight * 0.56 : 0.0;
+            final keyboardBaseHeight = _keyboardVisible
+                ? availableHeight * 0.56
+                : 0.0;
             final formulaHeaderHeight = dart_math
                 .min(30.0, availableHeight - formulaListBaseHeight)
                 .toDouble();
@@ -526,7 +540,8 @@ class _MathDrawingPageState extends State<MathDrawingPage>
                 // Formula list (always shown)
                 ConstrainedBox(
                   constraints: BoxConstraints(
-                      maxHeight: formulaListBaseHeight + formulaHeaderHeight),
+                    maxHeight: formulaListBaseHeight + formulaHeaderHeight,
+                  ),
                   child: _buildFormulaList(cs, formulaHeaderHeight),
                 ),
                 // Canvas + 3D canvas kept alive via IndexedStack
@@ -536,19 +551,18 @@ class _MathDrawingPageState extends State<MathDrawingPage>
                     children: [_buildCanvas(cs), _build3DCanvas(cs)],
                   ),
                 ),
-                if (_keyboardVisible &&
-                    _activeFormula != null)
+                if (_keyboardVisible && _activeFormula != null)
                   ConstrainedBox(
                     constraints: BoxConstraints(maxHeight: keyboardMaxHeight),
                     child: MathKeyboard(
-                      enabled: _activeFormula
-                              ?.editorKey.currentState?.ready ??
+                      enabled:
+                          _activeFormula?.editorKey.currentState?.ready ??
                           false,
                       activeLabel:
                           '公式 ${_formulas.indexOf(_activeFormula!) + 1}',
                       location:
                           _activeFormula?.editorKey.currentState?.location ??
-                              '公式',
+                          '公式',
                       onCommand: (kind, value) async {
                         final editor = _activeFormula?.editorKey.currentState;
                         if (kind == 'clipboard') {
@@ -563,8 +577,10 @@ class _MathDrawingPageState extends State<MathDrawingPage>
                   ),
               ],
             );
-          }),
-        ));
+          },
+        ),
+      ),
+    );
   }
 
   Widget _buildTabBar(ColorScheme cs) {
@@ -645,7 +661,8 @@ class _MathDrawingPageState extends State<MathDrawingPage>
 
   Widget _buildFormulaRow(ColorScheme cs, int index) {
     final f = _formulas[index];
-    final hasChanged = f.controller.text.trim().isNotEmpty &&
+    final hasChanged =
+        f.controller.text.trim().isNotEmpty &&
         f.controller.text.trim() != f.committedText;
 
     return Padding(
@@ -665,8 +682,9 @@ class _MathDrawingPageState extends State<MathDrawingPage>
               decoration: BoxDecoration(
                 color: f.color,
                 shape: BoxShape.circle,
-                border:
-                    hasChanged ? Border.all(color: cs.primary, width: 2) : null,
+                border: hasChanged
+                    ? Border.all(color: cs.primary, width: 2)
+                    : null,
               ),
             ),
           ),
@@ -727,8 +745,9 @@ class _MathDrawingPageState extends State<MathDrawingPage>
           _buildActionButton(
             icon: Icons.check_circle_outline,
             iconSize: 20,
-            color:
-                hasChanged ? cs.primary : cs.onSurface.withValues(alpha: 0.2),
+            color: hasChanged
+                ? cs.primary
+                : cs.onSurface.withValues(alpha: 0.2),
             tooltip: '绘制',
             onPressed: _canPlot ? _plotAll : null,
           ),
@@ -875,7 +894,7 @@ class _MathDrawingPageState extends State<MathDrawingPage>
               setState(() => _polygonSides = sides),
           instruction: _current3DTool != ConstructionTool.move
               ? (_canvas3DKey.currentState?.constructionInstruction ??
-                  _toolInstruction)
+                    _toolInstruction)
               : null,
           onToolSelected: (tool) {
             if (ToolInfo.all[tool]!.behavior == ToolBehavior.command) {
