@@ -1,6 +1,6 @@
 {
-  "name": "dart-math",
-  "short_name": "dart-math",
+  "name": "visual_math",
+  "short_name": "visual_math",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#ffffff",

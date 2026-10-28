@@ -19,6 +19,10 @@ typedef OnError = void Function(String message);
 
 /// A WebView-based canvas that renders math functions using JSXGraph.
 ///
+/// The generated page downloads JSXGraph JavaScript and CSS from jsDelivr when
+/// loaded. Network access to `cdn.jsdelivr.net` is therefore required; this
+/// widget has no pure-Flutter graph fallback.
+///
 /// This widget wraps [InAppWebView] with a full HTML page containing JSXGraph.
 /// It provides two-way communication:
 /// - Flutter → WebView: update expression, parameters, viewport

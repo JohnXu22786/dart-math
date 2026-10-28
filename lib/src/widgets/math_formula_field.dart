@@ -7,7 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_math_fork/flutter_math.dart';
 
-/// Source and rendered views share a draft; the WebView stays alive on toggles.
+/// A formula editor with source and mathematical input modes.
+///
+/// Native platforms with an embedded WebView use the bundled MathLive editor.
+/// Web and Linux render a formula preview with source editing instead.
 class MathFormulaField extends StatefulWidget {
   final TextEditingController controller;
   final bool mathematical;

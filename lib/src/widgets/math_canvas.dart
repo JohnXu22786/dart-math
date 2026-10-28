@@ -9,7 +9,11 @@ import '../models/formula_entry.dart';
 /// Callback types for canvas → parent communication.
 typedef OnCoordinateUpdate = void Function(List<Map<String, double>> points);
 typedef OnViewportChange = void Function(
-    double xMin, double yMin, double xMax, double yMax);
+  double xMin,
+  double yMin,
+  double xMax,
+  double yMax,
+);
 typedef OnReady = void Function();
 typedef OnError = void Function(String message);
 
@@ -25,21 +29,22 @@ typedef OnError = void Function(String message);
 /// - Touch/mouse pan and zoom
 /// - Coordinate data export
 class MathCanvas extends StatefulWidget {
-  /// Initial expression to plot.
+  /// Optional initial expression to plot, such as `x^2` or `sin(x)`.
   final String? initialExpression;
 
-  /// Called when the canvas is ready.
+  /// Called after the canvas has initialized and can accept updates.
   final OnReady? onReady;
 
-  /// Called when coordinate data is computed.
+  /// Called with sampled plot coordinates after a plot is updated.
   final OnCoordinateUpdate? onCoordinateUpdate;
 
-  /// Called when the viewport changes (user panned/zoomed).
+  /// Called with the visible x and y bounds after pan or zoom.
   final OnViewportChange? onViewportChange;
 
-  /// Called when an error occurs.
+  /// Called when an expression cannot be parsed or plotted.
   final OnError? onError;
 
+  /// Creates a Flutter-rendered 2D graph canvas.
   const MathCanvas({
     super.key,
     this.initialExpression,
@@ -101,10 +106,9 @@ class MathCanvasState extends State<MathCanvas> {
             color: formulaPalette[0],
             autoColor: true,
           );
-          _formulaCurves.add(_FormulaCurve(
-            formula: formula,
-            polylines: _sampleCurve(formula),
-          ));
+          _formulaCurves.add(
+            _FormulaCurve(formula: formula, polylines: _sampleCurve(formula)),
+          );
         }
       }
       if (!_isReady) {
@@ -123,25 +127,31 @@ class MathCanvasState extends State<MathCanvas> {
     setState(() {
       _formulaCurves
         ..clear()
-        ..addAll(newFormulas.map((f) => _FormulaCurve(
-              formula: f,
-              polylines: _sampleCurve(f),
-            )));
+        ..addAll(
+          newFormulas.map(
+            (f) => _FormulaCurve(formula: f, polylines: _sampleCurve(f)),
+          ),
+        );
     });
-    final allPoints =
-        _formulaCurves.expand((fc) => fc.polylines.expand((pl) => pl)).toList();
+    final allPoints = _formulaCurves
+        .expand((fc) => fc.polylines.expand((pl) => pl))
+        .toList();
     widget.onCoordinateUpdate?.call(allPoints);
   }
 
   /// Backward-compat: set a single expression.
   Future<void> setExpression(
-      String expression, Map<String, double>? parameters) async {
+    String expression,
+    Map<String, double>? parameters,
+  ) async {
     if (expression.isEmpty) {
       await setFormulas([]);
       return;
     }
-    final parsed =
-        MathExpression.fromInput(expression, parameterValues: parameters ?? {});
+    final parsed = MathExpression.fromInput(
+      expression,
+      parameterValues: parameters ?? {},
+    );
     if (!parsed.isValid) {
       widget.onError?.call(parsed.parseError ?? '表达式错误');
       return;
@@ -180,20 +190,21 @@ class MathCanvasState extends State<MathCanvas> {
 
     // Keep fitting to this finite domain, since expressions can be unbounded.
     final fittedCurves = _formulaCurves
-        .map((curve) => _FormulaCurve(
-              formula: curve.formula,
-              polylines: _sampleCurve(
-                curve.formula,
-                includePanMargin: false,
-              ),
-            ))
+        .map(
+          (curve) => _FormulaCurve(
+            formula: curve.formula,
+            polylines: _sampleCurve(curve.formula, includePanMargin: false),
+          ),
+        )
         .toList();
     final points = fittedCurves
         .expand((curve) => curve.polylines)
         .expand((polyline) => polyline)
-        .where((point) =>
-            (point['x'] ?? double.nan).isFinite &&
-            (point['y'] ?? double.nan).isFinite);
+        .where(
+          (point) =>
+              (point['x'] ?? double.nan).isFinite &&
+              (point['y'] ?? double.nan).isFinite,
+        );
     var xMin = double.infinity;
     var xMax = double.negativeInfinity;
     var yMin = double.infinity;
@@ -270,7 +281,11 @@ class MathCanvasState extends State<MathCanvas> {
 
   /// Set the viewport to specific bounds.
   Future<void> setViewport(
-      double xMin, double yMin, double xMax, double yMax) async {
+    double xMin,
+    double yMin,
+    double xMax,
+    double yMax,
+  ) async {
     if (!xMin.isFinite ||
         !yMin.isFinite ||
         !xMax.isFinite ||
@@ -415,10 +430,12 @@ class MathCanvasState extends State<MathCanvas> {
       // viewport and canvas aspect ratio to keep units isotropic), so the
       // viewport must shift by that same math-per-pixel amount on both
       // axes. A plain 0.5 damping factor used to halve the movement.
-      final dx =
-          _lastFocalPoint == null ? 0.0 : focalPoint.dx - _lastFocalPoint!.dx;
-      final dy =
-          _lastFocalPoint == null ? 0.0 : focalPoint.dy - _lastFocalPoint!.dy;
+      final dx = _lastFocalPoint == null
+          ? 0.0
+          : focalPoint.dx - _lastFocalPoint!.dx;
+      final dy = _lastFocalPoint == null
+          ? 0.0
+          : focalPoint.dy - _lastFocalPoint!.dy;
       final perPixel = (_xMax - _xMin) / _canvasWidth;
 
       setState(() {
@@ -655,12 +672,21 @@ class GraphPainter extends CustomPainter {
   }
 
   double _mathToScreenY(
-      double mathY, double height, double eYMin, double eYMax) {
+    double mathY,
+    double height,
+    double eYMin,
+    double eYMax,
+  ) {
     return (1.0 - (mathY - eYMin) / (eYMax - eYMin)) * height;
   }
 
   Offset _mathToScreen(
-      double mathX, double mathY, Size size, double eYMin, double eYMax) {
+    double mathX,
+    double mathY,
+    Size size,
+    double eYMin,
+    double eYMax,
+  ) {
     return Offset(
       _mathToScreenX(mathX, size.width),
       _mathToScreenY(mathY, size.height, eYMin, eYMax),
@@ -685,8 +711,10 @@ class GraphPainter extends CustomPainter {
   static double _niceStep(double range, int targetTicks) {
     if (range <= 0) return 1.0;
     final roughStep = range / targetTicks;
-    final magnitude =
-        dart_math.pow(10, (dart_math.log(roughStep) / dart_math.ln10).floor());
+    final magnitude = dart_math.pow(
+      10,
+      (dart_math.log(roughStep) / dart_math.ln10).floor(),
+    );
     final residual = roughStep / magnitude;
 
     double niceStep;
@@ -776,15 +804,15 @@ class GraphPainter extends CustomPainter {
     // X-axis (y = 0)
     if (eYMin <= 0 && eYMax >= 0) {
       final y0 = _mathToScreenY(0, size.height, eYMin, eYMax);
-      canvas.drawLine(
-        Offset(0, y0),
-        Offset(size.width, y0),
-        axisPaint,
-      );
+      canvas.drawLine(Offset(0, y0), Offset(size.width, y0), axisPaint);
 
       // X-axis arrow
-      _drawArrow(canvas, Offset(size.width, y0), arrowPaint,
-          direction: ArrowDirection.right);
+      _drawArrow(
+        canvas,
+        Offset(size.width, y0),
+        arrowPaint,
+        direction: ArrowDirection.right,
+      );
 
       // X-axis label
       final textPainter = TextPainter(
@@ -793,21 +821,23 @@ class GraphPainter extends CustomPainter {
       );
       textPainter.layout();
       textPainter.paint(
-          canvas, Offset(size.width - textPainter.width - 4, y0 - 16));
+        canvas,
+        Offset(size.width - textPainter.width - 4, y0 - 16),
+      );
     }
 
     // Y-axis (x = 0)
     if (xMin <= 0 && xMax >= 0) {
       final x0 = _mathToScreenX(0, size.width);
-      canvas.drawLine(
-        Offset(x0, 0),
-        Offset(x0, size.height),
-        axisPaint,
-      );
+      canvas.drawLine(Offset(x0, 0), Offset(x0, size.height), axisPaint);
 
       // Y-axis arrow
-      _drawArrow(canvas, Offset(x0, 0), arrowPaint,
-          direction: ArrowDirection.up);
+      _drawArrow(
+        canvas,
+        Offset(x0, 0),
+        arrowPaint,
+        direction: ArrowDirection.up,
+      );
 
       // Y-axis label
       final textPainter = TextPainter(
@@ -823,7 +853,12 @@ class GraphPainter extends CustomPainter {
   }
 
   void _drawTickLabels(
-      Canvas canvas, Size size, TextStyle style, double eYMin, double eYMax) {
+    Canvas canvas,
+    Size size,
+    TextStyle style,
+    double eYMin,
+    double eYMax,
+  ) {
     // Use the same step for both axes so they have the same number of cells.
     final step = _niceStep((xMax - xMin) / 2 + (eYMax - eYMin) / 2, 8);
 
@@ -844,10 +879,7 @@ class GraphPainter extends CustomPainter {
         textPainter.layout();
         textPainter.paint(
           canvas,
-          Offset(
-            screenX - textPainter.width / 2,
-            y0 + 4,
-          ),
+          Offset(screenX - textPainter.width / 2, y0 + 4),
         );
 
         // Small tick mark
@@ -879,10 +911,7 @@ class GraphPainter extends CustomPainter {
         textPainter.layout();
         textPainter.paint(
           canvas,
-          Offset(
-            x0 - textPainter.width - 6,
-            screenY - textPainter.height / 2,
-          ),
+          Offset(x0 - textPainter.width - 6, screenY - textPainter.height / 2),
         );
 
         // Small tick mark
@@ -908,10 +937,7 @@ class GraphPainter extends CustomPainter {
         textDirection: TextDirection.ltr,
       );
       textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(x0v + 4, y0v + 4),
-      );
+      textPainter.paint(canvas, Offset(x0v + 4, y0v + 4));
     }
   }
 
@@ -919,8 +945,12 @@ class GraphPainter extends CustomPainter {
   // Arrow helper
   // ==================================================================
 
-  void _drawArrow(Canvas canvas, Offset tip, Paint paint,
-      {required ArrowDirection direction}) {
+  void _drawArrow(
+    Canvas canvas,
+    Offset tip,
+    Paint paint, {
+    required ArrowDirection direction,
+  }) {
     final arrowSize = 8.0;
     final path = Path();
 
