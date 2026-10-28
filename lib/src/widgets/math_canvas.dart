@@ -25,21 +25,22 @@ typedef OnError = void Function(String message);
 /// - Touch/mouse pan and zoom
 /// - Coordinate data export
 class MathCanvas extends StatefulWidget {
-  /// Initial expression to plot.
+  /// Optional initial expression to plot, such as `x^2` or `sin(x)`.
   final String? initialExpression;
 
-  /// Called when the canvas is ready.
+  /// Called after the canvas has initialized and can accept updates.
   final OnReady? onReady;
 
-  /// Called when coordinate data is computed.
+  /// Called with sampled plot coordinates after a plot is updated.
   final OnCoordinateUpdate? onCoordinateUpdate;
 
-  /// Called when the viewport changes (user panned/zoomed).
+  /// Called with the visible x and y bounds after pan or zoom.
   final OnViewportChange? onViewportChange;
 
-  /// Called when an error occurs.
+  /// Called when an expression cannot be parsed or plotted.
   final OnError? onError;
 
+  /// Creates a Flutter-rendered 2D graph canvas.
   const MathCanvas({
     super.key,
     this.initialExpression,

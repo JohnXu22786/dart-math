@@ -1,4 +1,4 @@
-name: dart_math_example
+name: visual_math_example
 description: Standalone host for the visual_math package.
 publish_to: none
 version: 1.0.0+1

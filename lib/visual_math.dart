@@ -1,4 +1,7 @@
-/// Stroom's reusable 2D graphing and 3D geometry feature for Flutter.
+/// Public models and widgets for the Visual Math Flutter package.
+///
+/// Start with [MathDrawingPage] for the complete editor, graphing, and geometry
+/// experience, or compose individual widgets such as [MathCanvas] in an app.
 library visual_math;
 
 export 'src/models/formula_entry.dart';

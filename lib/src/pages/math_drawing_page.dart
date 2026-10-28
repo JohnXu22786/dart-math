@@ -19,12 +19,22 @@ import '../widgets/math_formula_field.dart';
 import '../widgets/math_keyboard.dart';
 import '../widgets/math_parameter_controls.dart';
 
-/// 数学绘图页面 — 多公式、等价的公式行、颜色选择、显隐切换。
+/// A complete math workspace with formula editing, graphing, and 3D geometry.
+///
+/// Use [initialExpression] to seed the first formula. On platforms where the
+/// embedded MathLive WebView is unavailable, formula entry uses the built-in
+/// source editor and formula preview fallback.
 class MathDrawingPage extends StatefulWidget {
+  /// Initial expression shown in the first formula row, if any.
   final String? initialExpression;
+
+  /// Whether to show the platform WebView editor when it is supported.
   final bool initialShowWebView;
+
+  /// Initial input mode; defaults to the platform's supported editor mode.
   final bool? initialMathematicalMode;
 
+  /// Creates a math workspace.
   const MathDrawingPage({
     super.key,
     this.initialExpression,
