@@ -91,7 +91,23 @@ jobs:
         run: flutter pub get
       - name: Build example
         working-directory: example
-        run: flutter build ${{ matrix.target }} --release ${{ matrix.build_args }}
+        shell: bash
+        run: |
+          set +e
+          flutter build ${{ matrix.target }} --release ${{ matrix.build_args }} 2>&1 | tee "$RUNNER_TEMP/flutter-build.log"
+          build_status=${PIPESTATUS[0]}
+          if [ "$build_status" -ne 0 ]; then
+            {
+              echo '### ${{ matrix.label }} build diagnostics'
+              echo
+              echo '```text'
+              grep -Ei '(^|[[:space:]])(error|fatal|exception|failed|failure|cannot|could not|unable to)(:|[[:space:]])|error:' "$RUNNER_TEMP/flutter-build.log" \
+                | tail -n 80 \
+                | sed -E 's#(/home/runner/work/[^[:space:]]*|/Users/runner/work/[^[:space:]]*|[A-Z]:\\a\\[^[:space:]]*)#<build-path>#g'
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit "$build_status"
         env:
           FLUTTER_XCODE_ARCHS: ${{ matrix.arch }}
       - if: matrix.target == 'linux'
