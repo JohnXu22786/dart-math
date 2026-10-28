@@ -133,6 +133,8 @@ jobs:
           exit "$build_status"
         env:
           FLUTTER_XCODE_ARCHS: ${{ matrix.arch }}
+          # MSVC recommends this workaround for the Windows WebView dependency's experimental coroutine header.
+          CXXFLAGS: ${{ matrix.target == 'windows' && '/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS' || '' }}
       - name: Upload sanitized build diagnostics
         if: failure() && steps.build_example.outcome == 'failure'
         uses: actions/upload-artifact@v4
