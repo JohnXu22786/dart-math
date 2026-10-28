@@ -61,6 +61,7 @@ jobs:
             runner: macos-15
             platform: ios
             target: ios
+            arch: arm64
             build_args: --no-codesign
     runs-on: ${{ matrix.runner }}
     steps:
