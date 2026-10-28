@@ -14,3 +14,7 @@ dependencies:
 
 flutter:
   uses-material-design: true
+dependency_overrides:
+  # 1.1.3 uses the legacy proguard-android.txt, rejected by current Android Gradle.
+  # Upstream 1.2.0-beta.3 switches to proguard-android-optimize.txt.
+  flutter_inappwebview_android: 1.2.0-beta.3

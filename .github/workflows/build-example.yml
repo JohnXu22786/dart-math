@@ -99,7 +99,13 @@ jobs:
           build_status=${PIPESTATUS[0]}
           if [ "$build_status" -ne 0 ]; then
             diagnostics_file="$RUNNER_TEMP/platform-build-diagnostics.txt"
-            grep -Ei -B 2 -A 3 '(^|[[:space:]])(error|fatal|exception|failed|failure|cannot|could not|unable to|what went wrong|a problem occurred|execution failed|caused by)(:|[[:space:]])|error:' "$RUNNER_TEMP/flutter-build.log" \
+            {
+              grep -Ei -B 2 -A 3 '(^|[[:space:]])(error|fatal|exception|failed|failure|cannot|could not|unable to|what went wrong|a problem occurred|execution failed|caused by|exited with status code|swift compiler|swiftcompile|linker command failed|undefined symbols)(:|[[:space:]])|error:|\[!\]' "$RUNNER_TEMP/flutter-build.log" \
+                | tail -n 40
+              if [ "${{ matrix.target }}" = 'ios' ]; then
+                tail -n 40 "$RUNNER_TEMP/flutter-build.log"
+              fi
+            } \
               | tail -n 80 \
               | tr -d '\000-\010\013\014\016-\037\177' \
               | sed -E 's#(/home/runner/work/[^[:space:]]*|/Users/runner/work/[^[:space:]]*|[A-Z]:\\a\\[^[:space:]]*)#<build-path>#g' \
