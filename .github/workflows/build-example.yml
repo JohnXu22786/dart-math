@@ -143,7 +143,11 @@ jobs:
         shell: bash
         run: |
           set +e
-          flutter build ${{ matrix.target }} --release ${{ matrix.build_args }} 2>&1 | tee "$RUNNER_TEMP/flutter-build.log"
+          diagnostic_args=()
+          if [ "${{ matrix.target }}" = 'ios' ]; then
+            diagnostic_args+=(--verbose)
+          fi
+          flutter build ${{ matrix.target }} --release ${{ matrix.build_args }} "${diagnostic_args[@]}" 2>&1 | tee "$RUNNER_TEMP/flutter-build.log"
           build_status=${PIPESTATUS[0]}
           if [ "$build_status" -ne 0 ]; then
             filter_future_swiftpm_notice() {

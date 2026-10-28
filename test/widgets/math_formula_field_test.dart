@@ -316,6 +316,116 @@ void main() {
     });
   });
 
+  testWidgets('formula fallback paste inserts at the current selection', (
+    tester,
+  ) async {
+    await _withTargetPlatformOverride(TargetPlatform.linux, () async {
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.getData') return {'text': 'z'};
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      final source = TextEditingController.fromValue(
+        const TextEditingValue(
+          text: 'x+y',
+          selection: TextSelection.collapsed(offset: 1),
+        ),
+      );
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MathFormulaField(
+              controller: source,
+              mathematical: true,
+              onModeChanged: (_) {},
+              onActivate: () {},
+              onChanged: () {},
+              onSubmitted: () {},
+              label: '公式 1',
+            ),
+          ),
+        ),
+      );
+      final editor = tester.state<MathFormulaFieldState>(
+        find.byType(MathFormulaField),
+      );
+
+      await editor.clipboard('paste');
+
+      expect(source.text, 'xz+y');
+      expect(source.selection, const TextSelection.collapsed(offset: 2));
+      await tester.pumpWidget(const SizedBox.shrink());
+      source.dispose();
+    });
+  });
+
+  testWidgets('formula fallback paste does not edit a replacement controller', (
+    tester,
+  ) async {
+    await _withTargetPlatformOverride(TargetPlatform.linux, () async {
+      final clipboardRead = Completer<void>();
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.getData') {
+          await clipboardRead.future;
+          return {'text': ' pasted'};
+        }
+        return null;
+      });
+      addTearDown(
+        () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+      );
+
+      final original = TextEditingController.fromValue(
+        const TextEditingValue(
+          text: 'x+y',
+          selection: TextSelection.collapsed(offset: 3),
+        ),
+      );
+      final replacement = TextEditingController.fromValue(
+        const TextEditingValue(
+          text: 'a+b',
+          selection: TextSelection.collapsed(offset: 1),
+        ),
+      );
+      Widget app(TextEditingController controller) => MaterialApp(
+        home: Scaffold(
+          body: MathFormulaField(
+            controller: controller,
+            mathematical: true,
+            onModeChanged: (_) {},
+            onActivate: () {},
+            onChanged: () {},
+            onSubmitted: () {},
+            label: '公式 1',
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(app(original));
+      final editor = tester.state<MathFormulaFieldState>(
+        find.byType(MathFormulaField),
+      );
+      final paste = editor.clipboard('paste');
+      await tester.pumpWidget(app(replacement));
+      clipboardRead.complete();
+      await paste;
+
+      expect(original.text, 'x+y');
+      expect(original.selection, const TextSelection.collapsed(offset: 3));
+      expect(replacement.text, 'a+b');
+      expect(replacement.selection, const TextSelection.collapsed(offset: 1));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      original.dispose();
+      replacement.dispose();
+    });
+  });
+
   testWidgets('formula fallback vertical navigation preserves the column', (
     tester,
   ) async {

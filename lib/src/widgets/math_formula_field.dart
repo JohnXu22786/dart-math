@@ -416,8 +416,9 @@ class MathFormulaFieldState extends State<MathFormulaField>
   Future<void> clipboard(String action) async {
     if (_usesFallback) {
       final controller = widget.controller;
-      final text = controller.text;
-      final selection = controller.selection;
+      final value = controller.value;
+      final text = value.text;
+      final selection = value.selection;
       final start = selection.isValid
           ? selection.start.clamp(0, text.length).toInt()
           : 0;
@@ -426,7 +427,10 @@ class MathFormulaFieldState extends State<MathFormulaField>
           : text.length;
       if (action == 'paste') {
         final data = await Clipboard.getData(Clipboard.kTextPlain);
-        if (mounted && data?.text != null) {
+        if (mounted &&
+            data?.text != null &&
+            identical(widget.controller, controller) &&
+            controller.value == value) {
           _fallbackCommand('insert', data!.text!);
         }
       } else if (action == 'copy' && selection.isValid && start != end) {
