@@ -86,6 +86,25 @@ jobs:
         name: Generate ${{ matrix.platform }} host scaffolding
         working-directory: example
         run: flutter create --platforms=${{ matrix.platform }} .
+      - if: matrix.target == 'windows'
+        name: Set Windows WebView coroutine compatibility define
+        working-directory: example
+        shell: bash
+        run: |
+          python - <<'PYTHON'
+          from pathlib import Path
+          import re
+
+          cmake_file = Path('windows/CMakeLists.txt')
+          cmake_text, replacements = re.subn(
+              r'(?m)^([ \t]*add_subdirectory\(\$\{FLUTTER_MANAGED_DIR\}\)[ \t]*)$',
+              r'# MSVC 14.51 rejects the WebView plugin experimental coroutine header.\nadd_definitions(-D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS)\n\1',
+              cmake_file.read_text(),
+          )
+          if replacements != 1:
+              raise SystemExit('Expected one add_subdirectory(${FLUTTER_MANAGED_DIR}) in windows/CMakeLists.txt.')
+          cmake_file.write_text(cmake_text)
+          PYTHON
       - if: matrix.target == 'apk'
         name: Pin Android Gradle versions for the stable WebView plugin
         working-directory: example
@@ -107,7 +126,7 @@ jobs:
           wrapper = Path('android/gradle/wrapper/gradle-wrapper.properties')
           wrapper_text, gradle_replacements = re.subn(
               r'(distributionUrl=.*gradle-)9\.3\.1(-all\.zip)',
-              r'\g<1>8.13\g<2>',
+              r'\g<1>8.14.3\g<2>',
               wrapper.read_text(),
           )
           if gradle_replacements != 1:
@@ -127,35 +146,104 @@ jobs:
           flutter build ${{ matrix.target }} --release ${{ matrix.build_args }} 2>&1 | tee "$RUNNER_TEMP/flutter-build.log"
           build_status=${PIPESTATUS[0]}
           if [ "$build_status" -ne 0 ]; then
+            filter_future_swiftpm_notice() {
+              awk '
+                BEGIN { in_notice = 0 }
+                {
+                  line = tolower($0)
+                  if (line ~ /error:|error c[0-9]+|swift compiler error|swiftcompile.*error|error \(xcode\)|undefined symbols|linker command failed/) {
+                    in_notice = 0
+                    print
+                    next
+                  }
+                  if (line ~ /(fatal|failed|cannot|could not)/ &&
+                      line !~ /future.*(version|release)/ &&
+                      line !~ /will become (a )?(fatal )?error/ &&
+                      line !~ /will be (a )?(fatal )?error/) {
+                    in_notice = 0
+                    print
+                    next
+                  }
+                  if (!in_notice && line ~ /(swift package manager|swiftpm|cocoapods|(^|[^[:alnum:]])spm([^[:alnum:]]|$))/ &&
+                      line ~ /(not support|unsupported|not compatible|future|will become an error|deprecated)/) {
+                    in_notice = 1
+                    next
+                  }
+                  if (line ~ /(will become|will be).*(fatal )?error/ ||
+                      line ~ /^[[:space:]]*(in|for) a future (version|release)/) {
+                    in_notice = 0
+                    next
+                  }
+                  if (line ~ /contact.*plugin maintainers/ &&
+                      line ~ /(swift package manager|swiftpm|(^|[^[:alnum:]])spm([^[:alnum:]]|$))/) {
+                    next
+                  }
+                  if (in_notice) {
+                    if (line ~ /future.*(version|release)/ || line ~ /will become an error/ || line ~ /deprecated.*future/) {
+                      in_notice = 0
+                      next
+                    }
+                    if (line ~ /(^|[[:space:]])(error|failed|fatal|undefined symbols|cannot|could not)(:|[[:space:]]|$)/) {
+                      in_notice = 0
+                    }
+                    if ($0 ~ /^[[:space:]]*$/ || $0 ~ /^[[:space:]]*--[[:space:]]*$/ ||
+                        $0 ~ /^[[:space:]]*[-*][[:space:]]*[[:alnum:]_.+-]+[[:space:]]*$/ ||
+                        $0 ~ /^[[:space:]]*[[:alnum:]_][[:alnum:]_.+-]*[[:space:]]*$/ ||
+                        line ~ /(swift package manager|swiftpm|cocoapods|(^|[^[:alnum:]])spm([^[:alnum:]]|$)|plugin|support|warning)/) {
+                      next
+                    }
+                    in_notice = 0
+                  }
+                  print
+                }
+              '
+            }
+            diagnostic_log="$RUNNER_TEMP/flutter-build.log"
+            if [ "${{ matrix.target }}" = 'ios' ]; then
+              diagnostic_log="$RUNNER_TEMP/flutter-build-filtered.log"
+              filter_future_swiftpm_notice < "$RUNNER_TEMP/flutter-build.log" > "$diagnostic_log"
+            fi
             diagnostics_file="$RUNNER_TEMP/platform-build-diagnostics.txt"
             {
-              grep -Ei -B 2 -A 3 '(^|[[:space:]])(error|fatal|exception|failed|failure|cannot|could not|unable to|what went wrong|a problem occurred|execution failed|caused by|exited with status code|swift compiler|swiftcompile|linker command failed|undefined symbols|cmake error|compiler test)(:|[[:space:]])|error:|\[!\]|C2338|STL1011' "$RUNNER_TEMP/flutter-build.log" \
+              grep -Ei -B 2 -A 3 '(^|[[:space:]])(error|fatal|exception|failed|failure|cannot|could not|unable to|what went wrong|a problem occurred|execution failed|caused by|exited with status code|swift compiler|swiftcompile|linker command failed|undefined symbols|cmake error|compiler test)(:|[[:space:]])|error:|\[!\]|C2338|STL1011' "$diagnostic_log" \
                 | head -n 40
-              tail -n 40 "$RUNNER_TEMP/flutter-build.log"
+              tail -n 40 "$diagnostic_log"
             } \
               | tail -n 80 \
               | tr -d '\000-\010\013\014\016-\037\177' \
-              | sed -E 's#(/home/runner/work/[^[:space:]]*|/Users/runner/work/[^[:space:]]*|[A-Z]:\\a\\[^[:space:]]*)#<build-path>#g' \
+              | "$DIAGNOSTICS_PYTHON" -c '
+          import re, sys
+
+          unix_paths = re.compile(r"(/home/runner/work/[^\s]+|/Users/runner/work/[^\s]+)")
+          windows_paths = re.compile(r"""(?<![A-Za-z0-9])([A-Za-z]:[\\/][^:\"<>|?]*)""")
+          for line in sys.stdin:
+              line = unix_paths.sub("<build-path>", line)
+              line = windows_paths.sub("<build-path>", line)
+              has_newline = line.endswith("\n")
+              line = line[:-1] if has_newline else line
+              sys.stdout.write(line[:1000] + ("\n" if has_newline else ""))
+          ' \
               > "$diagnostics_file"
             {
               echo '### ${{ matrix.label }} build diagnostics'
               echo
-              echo '```text'
+              fence=$'\x60\x60\x60'
+              while grep -Fq "$fence" "$diagnostics_file"; do
+                fence+=$'\x60'
+              done
+              printf '%stext\n' "$fence"
               cat "$diagnostics_file"
-              echo '```'
+              printf '%s\n' "$fence"
             } >> "$GITHUB_STEP_SUMMARY"
             annotation_file="$RUNNER_TEMP/platform-build-annotations.txt"
             grep -Ei -B 2 -A 3 'what went wrong|a problem occurred|execution failed|caused by|fatal error|error:|error C[0-9]+|C2338|STL1011|CMake Error|linker command failed|undefined symbols' "$diagnostics_file" \
-              | grep -Eiv 'Swift Package Manager.*future (Flutter )?version' \
               | head -n 10 > "$annotation_file"
             if [ ! -s "$annotation_file" ]; then
               grep -Ei -B 2 -A 3 '(^|[[:space:]])(error|fatal|exception|failed|failure|cannot|could not|unable to|exited with status code|swift compiler|swiftcompile|compiler test)(:|[[:space:]])|\[!\]' "$diagnostics_file" \
-                | grep -Eiv 'Swift Package Manager.*future (Flutter )?version' \
                 | head -n 10 > "$annotation_file"
             fi
             if [ ! -s "$annotation_file" ]; then
-              grep -Eiv 'Swift Package Manager.*future (Flutter )?version' "$diagnostics_file" \
-                | tail -n 10 > "$annotation_file"
+              tail -n 10 "$diagnostics_file" > "$annotation_file"
             fi
             annotation_count=0
             while IFS= read -r diagnostic || [ -n "$diagnostic" ]; do
@@ -173,8 +261,7 @@ jobs:
           exit "$build_status"
         env:
           FLUTTER_XCODE_ARCHS: ${{ matrix.arch }}
-          # MSVC recommends this workaround for the Windows WebView dependency's experimental coroutine header.
-          CXXFLAGS: ${{ matrix.target == 'windows' && '/D_SILENCE_EXPERIMENTAL_COROUTINE_DEPRECATION_WARNINGS' || '' }}
+          DIAGNOSTICS_PYTHON: ${{ matrix.target == 'windows' && 'python' || 'python3' }}
       - name: Upload sanitized build diagnostics
         if: failure() && steps.build_example.outcome == 'failure'
         uses: actions/upload-artifact@v4
